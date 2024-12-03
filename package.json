@@ -1,0 +1,9 @@
+{
+    "name": "hacku",
+    "private": true,
+    "workspaces": [
+      "frontend",
+      "backend"
+    ]
+  }
+  
