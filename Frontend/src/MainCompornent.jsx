@@ -116,18 +116,22 @@ function MainComponent() {
   
   
   // 修正箇所: fetchData 関数の新規追加
-  const fetchData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/getMatchData");
-      const data = await response.json();
-      setMatchData(data);
-    } catch (error) {
-      setErrorMessage("データ取得に失敗しました。");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
+
+// API呼び出し例
+const fetchData = useCallback(async () => {
+  try {
+    setIsLoading(true);
+    const response = await fetch(`${API_BASE_URL}/api/getMatchData`);
+    const data = await response.json();
+    setMatchData(data);
+  } catch (error) {
+    setErrorMessage("データ取得に失敗しました。");
+  } finally {
+    setIsLoading(false);
+  }
+}, []);
+
 
   useEffect(() => {
     fetchData();
@@ -255,6 +259,8 @@ const MeetingLink = ({ roomName }) => {
     setShowTimeSlots(false);
   }, []);
   
+
+  
    // マッチング処理
    // 会議URL生成処理
    const handleMatchingStart = async () => {
@@ -264,7 +270,7 @@ const MeetingLink = ({ roomName }) => {
     }
   
     try {
-      const response = await fetch("http://192.168.0.11:5000/api/createOrJoinRoom", {
+      const response = await fetch("${API_BASE_URL}/api/createOrJoinRoom", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category: matchingCategory, recording: isRecording }),
@@ -314,7 +320,7 @@ const MeetingLink = ({ roomName }) => {
 /*useEffect(() => {
   const fetchCalendarReservations = async () => {
       try {
-          const response = await fetch("http://192.168.0.11:5000/api/calendar", {
+          const response = await fetch("${API_BASE_URL}/api/calendar", {
               method: "GET",
               headers: { "Content-Type": "application/json" },
           });
@@ -333,7 +339,7 @@ const MeetingLink = ({ roomName }) => {
 
 const handleAddReservation = async (date, timeSlot, category) => {
   try {
-      const response = await fetch("http://192.168.0.11:5000/api/calendar", {
+      const response = await fetch("${API_BASE_URL}/api/calendar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -357,7 +363,7 @@ const handleAddReservation = async (date, timeSlot, category) => {
 const handleCancelReservation = async (reservationId) => {
   try {
       const response = await fetch(
-          `http://192.168.0.11:5000/api/calendar/${reservationId}`,
+          `${API_BASE_URL}/api/calendar/${reservationId}`,
           { method: "DELETE" }
       );
 
