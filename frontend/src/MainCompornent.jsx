@@ -26,7 +26,7 @@ function MainComponent() {
   const [showJitsiMeeting, setShowJitsiMeeting] = useState(false); // 状態を初期化
   const [timer, setTimer] = useState(); // 初期値300秒（5分）
   const [topic, setTopic] = useState(null);
-
+  const [minimized, setMinimized] = useState(false); // minimized状態を追加
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -99,7 +99,7 @@ function MainComponent() {
     return () => clearInterval(interval); // クリーンアップ
   };
 
-  const handleStartMeeting = async () => {
+  /*const handleStartMeeting = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/createOrJoinRoom`, {
         method: "POST",
@@ -140,7 +140,7 @@ function MainComponent() {
       console.error("会議URLの取得に失敗しました:", error);
       alert("会議の開始に失敗しました。詳細はコンソールを確認してください。");
     }
-  };
+  };*/
   
   
   // 修正箇所: fetchData 関数の新規追加
@@ -565,21 +565,39 @@ return (
 )}
 
 {showDiscussionTopic && meetingUrl && (
-      <div className="fixed inset-0 bg-black flex flex-col items-center z-50">
-        <div
-          className="bg-white w-full max-w-screen-lg p-4 rounded-t-lg"
-          style={{ position: "absolute", top: "2%", left: "50%", transform: "translateX(-50%)" }}
-        >
+  <div className="fixed inset-0 bg-black flex flex-col items-center z-50">
+    {minimized ? (
+      <div
+        className="bg-white p-2 rounded-lg shadow-lg"
+        style={{ position: "absolute", top: "10px", left: "10px", cursor: "pointer" }}
+        onClick={() => setMinimized(false)}
+      >
+        <h2 className="text-sm font-bold font-noto-sans">お題</h2>
+      </div>
+    ) : (
+      <div
+        className="bg-white w-full max-w-screen-lg p-4 rounded-t-lg"
+        style={{ position: "absolute", top: "2%", left: "50%", transform: "translateX(-50%)", cursor: "default" }}
+      >
+        <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold font-noto-sans">ディスカッションお題</h2>
-          <p className="mt-2 text-gray-600 font-noto-sans">{topic || "お題を生成中..."}</p>
-          <p className="mt-1">制限時間: {Math.floor(timer / 60)}分 {timer % 60}秒</p>
+          <button
+            className="text-blue-500 underline"
+            onClick={() => setMinimized(true)}
+          >
+            最小化
+          </button>
         </div>
-        <div className="w-full h-full bg-black">
-          <JitsiMeeting roomName={meetingUrl.split("/").pop()} />
-        </div>
+        <p className="mt-2 text-gray-600 font-noto-sans">{topic || "お題を生成中..."}</p>
+        <p className="mt-1">制限時間: {Math.floor(timer / 60)}分 {timer % 60}秒</p>
       </div>
     )}
-  
+    <div className="w-full h-full bg-black">
+      <JitsiMeeting roomName={meetingUrl.split("/").pop()} />
+    </div>
+  </div>
+)}
+
 
 
 
