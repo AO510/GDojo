@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const crypto = require("crypto");
 
 const meetings = {}; // 部屋を管理するオブジェクト
 
@@ -7,66 +8,90 @@ const meetings = {}; // 部屋を管理するオブジェクト
 const generateRoomName = (prefix = "Room") => {
   const timestamp = Date.now(); // 現在時刻
   const randomString = Math.random().toString(36).substr(2, 12); // ランダムな12文字
-  const hash = require('crypto').createHash('md5').update(`${prefix}${timestamp}${randomString}`).digest('hex'); // MD5ハッシュを生成
+  const hash = crypto.createHash("md5").update(`${prefix}${timestamp}${randomString}`).digest("hex"); // MD5ハッシュを生成
   return `${prefix}_${hash}`;
 };
 
-
 // 部屋を作成または参加させるエンドポイント
 router.post("/createOrJoinRoom", (req, res) => {
-  const { category = "general", recording = false } = req.body;
-  console.log("マッチングリクエスト受信:", { category, recording });
+  try {
+    const { category = "general", recording = false } = req.body;
+    console.log("マッチングリクエスト受信:", { category, recording });
 
-  let meeting = Object.values(meetings).find(
-    (m) => m.category === category && m.recording === recording
-  );
+    // カテゴリごとに部屋を検索
+    let meeting = Object.values(meetings).find(
+      (m) => m.category === category && m.recording === recording
+    );
 
-  if (!meeting) {
-    const roomName = generateRoomName(category); // 部屋名を生成
-    meeting = {
-      roomName,
-      category,
-      recording,
-      participants: 0,
-      maxParticipants: 2,
-      topic: null,
-      timer: null,
-    };
-    meetings[roomName] = meeting;
-    console.log(`新しい部屋を作成: ${roomName}`);
+    // 部屋がない場合、新規作成
+    if (!meeting) {
+      const roomName = generateRoomName(category);
+      meeting = {
+        roomName,
+        category,
+        recording,
+        participants: 0,
+        maxParticipants: 2, // ここで2人マッチングに固定
+        topic: null,
+        timer: null,
+      };
+      meetings[roomName] = meeting;
+      console.log(`新しい部屋を作成: ${roomName}`);
+    }
+
+    // 部屋に参加
+    meeting.participants++;
+    console.log(
+      `部屋: ${meeting.roomName} | 現在の参加者: ${meeting.participants}/${meeting.maxParticipants}`
+    );
+    res.json({
+      roomName: meeting.roomName,
+      join_url: `https://meet.jit.si/${meeting.roomName}`,
+      participants: meeting.participants,
+      topic: meeting.topic, // お題
+      timer: meeting.timer, // タイマー
+    });
+    
+
+    // 全員揃ったらお題を設定
+    if (meeting.participants === meeting.maxParticipants && !meeting.topic) {
+      const { topic, timer } = generateRandomTopicWithTimer(category);
+      meeting.topic = topic;
+      meeting.timer = timer;
+      console.log(`お題設定: ${topic}, タイマー: ${timer}秒`);
+      startMeetingTimer(meeting);
+    }
+
+    // フロントエンドに返却
+    res.status(200).json({
+      roomName: meeting.roomName,
+      join_url: `https://meet.jit.si/${meeting.roomName}`,
+      participants: meeting.participants,
+      topic: meeting.topic || "参加者を待っています...",
+      timer: meeting.timer || 0,
+    });
+  } catch (error) {
+    console.error("部屋作成または参加中にエラー:", error);
+    res.status(500).json({ error: "部屋の作成または参加に失敗しました。" });
   }
-
-  meeting.participants++;
-  console.log(`現在の参加者数: ${meeting.participants}/${meeting.maxParticipants}`);
-
-  if (meeting.participants === meeting.maxParticipants && !meeting.topic) {
-    const { topic, timer } = generateRandomTopicWithTimer(category);
-    meeting.topic = topic;
-    meeting.timer = timer;
-    console.log(`お題が設定されました: ${topic}, タイマー: ${timer}秒`);
-    startMeetingTimer(meeting);
-  }
-
-  res.json({
-    roomName: meeting.roomName,
-    join_url: `https://meet.jit.si/${meeting.roomName}`,
-    participants: meeting.participants,
-    topic: meeting.topic,
-    timer: meeting.timer,
-  });
 });
 
 // 部屋を削除するエンドポイント
 router.post("/deleteRoom", (req, res) => {
-  const { roomName } = req.body;
+  try {
+    const { roomName } = req.body;
 
-  if (!roomName || !meetings[roomName]) {
-    return res.status(404).json({ error: "部屋が見つかりません。" });
+    if (!roomName || !meetings[roomName]) {
+      return res.status(404).json({ error: "部屋が見つかりません。" });
+    }
+
+    delete meetings[roomName];
+    console.log(`部屋 "${roomName}" が削除されました。`);
+    res.status(200).json({ message: `部屋 "${roomName}" を削除しました。` });
+  } catch (error) {
+    console.error("部屋の削除時にエラーが発生しました:", error);
+    res.status(500).json({ error: "部屋の削除に失敗しました。" });
   }
-
-  delete meetings[roomName];
-  console.log(`部屋 "${roomName}" が削除されました。`);
-  res.status(200).json({ message: `部屋 "${roomName}" を削除しました。` });
 });
 
 // すべての部屋を一覧表示するエンドポイント
@@ -76,13 +101,18 @@ router.get("/listAllRooms", (req, res) => {
 
 // 特定の部屋の詳細情報を取得するエンドポイント
 router.post("/getRoomDetails", (req, res) => {
-  const { roomName } = req.body;
+  try {
+    const { roomName } = req.body;
 
-  if (!roomName || !meetings[roomName]) {
-    return res.status(404).json({ error: "部屋が見つかりません。" });
+    if (!roomName || !meetings[roomName]) {
+      return res.status(404).json({ error: "部屋が見つかりません。" });
+    }
+
+    res.status(200).json(meetings[roomName]);
+  } catch (error) {
+    console.error("部屋詳細取得時にエラーが発生しました:", error);
+    res.status(500).json({ error: "部屋の詳細情報の取得に失敗しました。" });
   }
-
-  res.status(200).json(meetings[roomName]);
 });
 
 // お題生成関数

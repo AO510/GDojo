@@ -99,20 +99,48 @@ function MainComponent() {
     return () => clearInterval(interval); // クリーンアップ
   };
 
-  const handleStartMeeting = async () => {
+  /*const handleStartMeeting = async () => {
     try {
-      const response = await fetch("/api/createOrJoinRoom", {
+      const response = await fetch(`${API_BASE_URL}/api/createOrJoinRoom`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category: "general", recording: false }),
       });
+  
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+  
       const data = await response.json();
-      setMeetingUrl(`https://meet.jit.si/${data.roomName}`);
+      console.log("API Response:", data);
+  
+      setMeetingUrl(data.join_url);
       setShowDiscussionTopic(true);
+  
+      // Jitsi Meetの埋め込み
+      const domain = "meet.jit.si";
+      const options = {
+        roomName: data.roomName,
+        width: "100%",
+        height: 500,
+        parentNode: document.getElementById("jitsi-container"),
+        configOverwrite: {
+          prejoinPageEnabled: false,
+        },
+        interfaceConfigOverwrite: {
+          TOOLBAR_BUTTONS: ["microphone", "camera", "chat", "hangup"],
+        },
+      };
+  
+      const api = new JitsiMeetExternalAPI(domain, options);
+      api.addEventListener("readyToClose", () => {
+        console.log("Meeting closed");
+      });
     } catch (error) {
-      console.error("会議URLの取得に失敗しました", error);
+      console.error("会議URLの取得に失敗しました:", error);
+      alert("会議の開始に失敗しました。詳細はコンソールを確認してください。");
     }
-  };
+  };*/
   
   
   // 修正箇所: fetchData 関数の新規追加
@@ -122,7 +150,7 @@ function MainComponent() {
 const fetchData = useCallback(async () => {
   try {
     setIsLoading(true);
-    const response = await fetch(`${API_BASE_URL}/api/getMatchData`);
+    const response = await fetchWithFallback(`${API_BASE_URL}/api/getMatchData`);
     const data = await response.json();
     setMatchData(data);
   } catch (error) {
@@ -145,10 +173,10 @@ const fetchData = useCallback(async () => {
   }, [showDiscussionTopic]);
 
   // MeetingLink コンポーネントを定義
-const MeetingLink = ({ roomName }) => {
+/*const MeetingLink = ({ roomName }) => {
   const handleJoinMeeting = async (roomName) => {
     try {
-      const response = await fetch("/api/joinMeeting", {
+      const response = await fetch(`${API_BASE_URL}/api/joinMeeting`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomName }),
@@ -175,13 +203,13 @@ const MeetingLink = ({ roomName }) => {
       Jitsiミーティングに参加
     </a>
   );
-};
+};*/
 
 
-    <div>
+    /*<div>
       <h1>Jitsiミーティングアプリ</h1>
       <JitsiMeeting roomName={roomName} isHost={isHost} />
-    </div>
+    </div>*/
   
 
   const handleLogin = useCallback(() => {
@@ -207,7 +235,7 @@ const MeetingLink = ({ roomName }) => {
     setMessages((prev) => [...prev, newMessage]);
     setUserInput("");
 
-    const response = await fetch("/integrations/chat-gpt/conversationgpt4", {
+   /* const response = await fetch("/integrations/chat-gpt/conversationgpt4", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -224,7 +252,7 @@ const MeetingLink = ({ roomName }) => {
       }),
     });
 
-    handleStreamResponse(response);
+    handleStreamResponse(response);*/
   };
   const getReservationCount = (date, category) => {
     return reservations.filter(
@@ -259,18 +287,29 @@ const MeetingLink = ({ roomName }) => {
     setShowTimeSlots(false);
   }, []);
   
-
+  const fetchWithFallback = async (url, options) => {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) {
+        return response;
+      } else {
+        throw new Error("Response not OK");
+      }
+    } catch (error) {
+      console.warn("Primary API base URL failed, falling back to localhost:", error);
+      const fallbackUrl = url.replace(process.env.REACT_APP_API_BASE_URL, "http://localhost:5000");
+      return await fetch(fallbackUrl, options);
+    }
+  };
+  
   
    // マッチング処理
    // 会議URL生成処理
    const handleMatchingStart = async () => {
-    if (!matchingCategory) {
-      alert("カテゴリーを選択してください！");
-      return;
-    }
+    
   
     try {
-      const response = await fetch("${API_BASE_URL}/api/createOrJoinRoom", {
+      const response = await fetchWithFallback(`${API_BASE_URL}/api/createOrJoinRoom`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category: matchingCategory, recording: isRecording }),
@@ -300,7 +339,9 @@ const MeetingLink = ({ roomName }) => {
   };
   
   
-  const startMeetingTimer = (meeting) => {
+  
+  
+ /*const startMeetingTimer = (meeting) => {
     meeting.timerInterval = setInterval(() => {
       if (meeting.timer <= 0) {
         clearInterval(meeting.timerInterval);
@@ -317,7 +358,7 @@ const MeetingLink = ({ roomName }) => {
   
   
 
-/*useEffect(() => {
+useEffect(() => {
   const fetchCalendarReservations = async () => {
       try {
           const response = await fetch("${API_BASE_URL}/api/calendar", {
@@ -336,10 +377,10 @@ const MeetingLink = ({ roomName }) => {
 
   fetchCalendarReservations();
 }, []);*/
-
+/*
 const handleAddReservation = async (date, timeSlot, category) => {
   try {
-      const response = await fetch("${API_BASE_URL}/api/calendar", {
+      const response = await fetch(`${API_BASE_URL}/api/calendar`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -374,7 +415,7 @@ const handleCancelReservation = async (reservationId) => {
   } catch (error) {
       console.error("予約キャンセルエラー:", error);
   }
-};
+};*/
 
 return (
   <div className="min-h-screen bg-gray-50">

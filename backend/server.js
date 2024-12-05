@@ -8,17 +8,30 @@ const matchRouter = require("./controllers/matchController");
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
 const PORT = process.env.PORT || 5000;
 
+// 許可するオリジンをリスト化
+const allowedOrigins = [
+  "http://localhost:3000", // ローカル開発用
+  "https://gdojo-frontend.onrender.com" // 本番用フロントエンド
+];
+
 // ミドルウェア設定
-app.use(cors());
 app.use(bodyParser.json());
 
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || "http://localhost:3000", // 環境変数で切り替え
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  allowedHeaders: ["Content-Type"],
-};
-app.use(cors(corsOptions));
-
+// 動的CORS設定
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // originが許可リストに含まれている場合のみ許可
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS policy not allowed for this origin"));
+      }
+    },
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    allowedHeaders: ["Content-Type"],
+  })
+);
 
 // デフォルトルート
 app.get("/", (req, res) => {
