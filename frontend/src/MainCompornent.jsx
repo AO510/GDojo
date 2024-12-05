@@ -99,7 +99,7 @@ function MainComponent() {
     return () => clearInterval(interval); // クリーンアップ
   };
 
-  /*const handleStartMeeting = async () => {
+  const handleStartMeeting = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/createOrJoinRoom`, {
         method: "POST",
@@ -140,7 +140,7 @@ function MainComponent() {
       console.error("会議URLの取得に失敗しました:", error);
       alert("会議の開始に失敗しました。詳細はコンソールを確認してください。");
     }
-  };*/
+  };
   
   
   // 修正箇所: fetchData 関数の新規追加
