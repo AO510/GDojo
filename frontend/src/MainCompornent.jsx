@@ -213,32 +213,33 @@ const fetchData = useCallback(async () => {
   
   // リアルタイムで準備完了状態を確認
   useEffect(() => {
-    if (!meetingUrl) return;
+    if (timer === 0) {
+      alert("会議が終了しました！");
+      // 元の画面に戻るロジックを実行
+      setShowDiscussionTopic(false);
+      setMeetingUrl(null);
+    }
+  }, [timer]);
   
-    const intervalId = setInterval(async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/getRoomDetails`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roomName: meetingUrl.split("/").pop() }),
-        });
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      // 部屋から退出したことを通知
+      fetch(`${API_BASE_URL}/api/leaveRoom`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomName: meetingUrl.split("/").pop() }),
+      });
   
-        if (!response.ok) {
-          throw new Error("部屋の状態を取得できませんでした");
-        }
+      // 影響を残さないようにする
+      setShowDiscussionTopic(false);
+      setMeetingUrl(null);
+    };
   
-        const data = await response.json();
-        console.log("バックエンドからのデータ:", { topic: data.topic, timer: data.timer, ready: data.ready });
+    window.addEventListener("beforeunload", handleBeforeUnload);
   
-        setTopic(data.topic); // お題を更新
-        setTimer(data.timer); // 残り制限時間を更新
-        setReady(data.ready); // 準備完了状態を更新
-      } catch (error) {
-        console.error("リアルタイム更新失敗:", error);
-      }
-    }, 1000); // 1秒ごとにバックエンドと同期
-  
-    return () => clearInterval(intervalId); // クリーンアップ
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
   }, [meetingUrl]);
   
   
