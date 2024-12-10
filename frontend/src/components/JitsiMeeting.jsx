@@ -2,77 +2,86 @@ import React, { useEffect, useRef } from "react";
 
 const JitsiMeeting = ({ roomName }) => {
   const jitsiContainerRef = useRef(null);
+  const apiRef = useRef(null);
 
   useEffect(() => {
+    const loadJitsiScript = (callback) => {
+      if (typeof window.JitsiMeetExternalAPI !== "undefined") {
+        callback();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://meet.jit.si/external_api.js";
+      script.async = true;
+      script.onload = callback;
+      script.onerror = () => console.error("Failed to load Jitsi script");
+      document.body.appendChild(script);
+    };
+
     const initJitsi = () => {
       if (!window.JitsiMeetExternalAPI) {
         console.error("Jitsi Meet API is not available.");
         return;
       }
 
-      const domain = "meet.jit.si"; // 公式サーバー
+      const domain = "meet.jit.si";
       const options = {
-        roomName: roomName, // ランダムに生成された部屋名
-        parentNode: jitsiContainerRef.current, // DOMに埋め込む
+        roomName: roomName || `Room_${Math.random().toString(36).substr(2, 9)}`, // ランダムな部屋名生成
+        parentNode: jitsiContainerRef.current,
         width: "100%",
         height: "100%",
         configOverwrite: {
-          enableLobby: false, // ロビーモード無効
-          startAudioMuted: 1, // 初期状態で音声をミュート
-          disableDeepLinking: true, // モバイルアプリへの遷移を無効化
-          prejoinPageEnabled: false, // 事前参加画面をスキップ
-          startWithAudioMuted: false, // 音声をミュート
-          startWithVideoMuted: false, // ビデオをオフ
+          enableLobby: false,
+          startAudioMuted: 1,
+          disableDeepLinking: true,
+          prejoinPageEnabled: false,
+          startWithAudioMuted: true,
+          startWithVideoMuted: true,
         },
         interfaceConfigOverwrite: {
-          SHOW_JITSI_WATERMARK: false, // ウォーターマークを非表示
+          SHOW_JITSI_WATERMARK: false,
           SHOW_BRAND_WATERMARK: false,
           TOOLBAR_BUTTONS: [
-            "microphone", 
+            "microphone",
             "camera",
-            "desktop", 
+            "desktop",
             "fullscreen",
             "hangup",
-            "chat", 
+            "chat",
             "raisehand",
-            "participants-pane", 
+            "participants-pane",
             "videoquality",
-            "tileview", 
-            "select-background" // 必要なツールバーを追加
+            "tileview",
+            "select-background",
           ],
         },
         userInfo: {
-          displayName: "ゲストユーザー", // ユーザー名
+          displayName: "ゲストユーザー",
         },
       };
 
       try {
         const api = new window.JitsiMeetExternalAPI(domain, options);
+        apiRef.current = api;
 
-        // イベントリスナーを設定
         api.addEventListener("videoConferenceJoined", () => {
           console.log("会議に参加しました");
         });
-
-        // コンポーネントがアンマウントされたときにAPIを破棄
-        return () => api.dispose();
       } catch (error) {
         console.error("Failed to create JitsiMeetExternalAPI instance", error);
       }
     };
 
-    // JitsiMeetExternalAPIが利用可能か確認
-    if (typeof window.JitsiMeetExternalAPI === "undefined") {
-      console.warn("Jitsi API not available. Retrying...");
-      const interval = setInterval(() => {
-        if (typeof window.JitsiMeetExternalAPI !== "undefined") {
-          clearInterval(interval);
-          initJitsi();
-        }
-      }, 500); // 500msごとにスクリプトロード確認
-    } else {
-      initJitsi();
-    }
+    loadJitsiScript(initJitsi);
+
+    // クリーンアップ処理
+    return () => {
+      if (apiRef.current) {
+        apiRef.current.dispose();
+        apiRef.current = null;
+      }
+    };
   }, [roomName]);
 
   return (

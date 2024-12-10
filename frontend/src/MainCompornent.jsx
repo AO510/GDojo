@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import JitsiMeeting from './components/JitsiMeeting';
-
+import { useHistory } from "react-router-dom";
 
 
 import {
@@ -10,7 +10,7 @@ import {
 } from "./utilities/runtime-helpers";
 
 
-
+//バックアップ
 function MainComponent() {
  
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +27,9 @@ function MainComponent() {
   const [timer, setTimer] = useState(); // 初期値300秒（5分）
   const [topic, setTopic] = useState(null);
   const [minimized, setMinimized] = useState(false); // minimized状態を追加
+  const history = useHistory();
+  const [ready, setReady] = useState(false); // 状態を初期化
+
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -59,6 +62,8 @@ function MainComponent() {
   const [messages, setMessages] = useState([]);
   const [userInput, setUserInput] = useState("");
   const [streamingMessage, setStreamingMessage] = useState("");
+  const [showRecordingModal, setShowRecordingModal] = useState(false);
+  const [recordings, setRecordings] = useState([]);
   const handleStreamResponse = useHandleStreamResponse({
     onChunk: setStreamingMessage,
     onFinish: (message) => {
@@ -66,85 +71,13 @@ function MainComponent() {
       setStreamingMessage("");
     },
   });
-  useEffect(() => {
-    if (showDiscussionTopic && timer > 0) {
-      const intervalId = setInterval(() => {
-        setTimer((prevTimer) => {
-          if (prevTimer <= 1) {
-            clearInterval(intervalId);
-            alert("時間が終了しました！");
-            // 必要であればバックエンドに終了を通知
-            return 0;
-          }
-          return prevTimer - 1;
-        });
-      }, 1000);
-  
-      return () => clearInterval(intervalId); // クリーンアップ
-    }
-  }, [showDiscussionTopic, timer]);
-  
-    // カウントダウン処理を分離
-  const startTimer = () => {
-    const interval = setInterval(() => {
-      setTimer((prevTimer) => {
-        if (prevTimer <= 0) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prevTimer - 1;
-      });
-    }, 1000);
 
-    return () => clearInterval(interval); // クリーンアップ
-  };
+  
 
-  /*const handleStartMeeting = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/createOrJoinRoom`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: "general", recording: false }),
-      });
   
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-  
-      const data = await response.json();
-      console.log("API Response:", data);
-  
-      setMeetingUrl(data.join_url);
-      setShowDiscussionTopic(true);
-  
-      // Jitsi Meetの埋め込み
-      const domain = "meet.jit.si";
-      const options = {
-        roomName: data.roomName,
-        width: "100%",
-        height: 500,
-        parentNode: document.getElementById("jitsi-container"),
-        configOverwrite: {
-          prejoinPageEnabled: false,
-        },
-        interfaceConfigOverwrite: {
-          TOOLBAR_BUTTONS: ["microphone", "camera", "chat", "hangup"],
-        },
-      };
-  
-      const api = new JitsiMeetExternalAPI(domain, options);
-      api.addEventListener("readyToClose", () => {
-        console.log("Meeting closed");
-      });
-    } catch (error) {
-      console.error("会議URLの取得に失敗しました:", error);
-      alert("会議の開始に失敗しました。詳細はコンソールを確認してください。");
-    }
-  };*/
-  
-  
+   
   // 修正箇所: fetchData 関数の新規追加
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ; //process.env.REACT_APP_API_BASE_URL ;
 
 // API呼び出し例
 const fetchData = useCallback(async () => {
@@ -164,52 +97,15 @@ const fetchData = useCallback(async () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
+/*
   // useEffectで呼び出し
   useEffect(() => {
     if (showDiscussionTopic) {
       return startTimer();
     }
   }, [showDiscussionTopic]);
-
-  // MeetingLink コンポーネントを定義
-/*const MeetingLink = ({ roomName }) => {
-  const handleJoinMeeting = async (roomName) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/joinMeeting`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomName }),
-      });
-
-      if (!response.ok) {
-        console.error("部屋への参加通知に失敗しました。");
-      } else {
-        console.log("部屋への参加が記録されました。");
-      }
-    } catch (error) {
-      console.error("エラー:", error);
-    }
-  };
-
-  return (
-    <a
-      href={`https://meet.jit.si/${roomName}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={() => handleJoinMeeting(roomName)}
-      className="hover:underline text-blue-500"
-    >
-      Jitsiミーティングに参加
-    </a>
-  );
-};*/
-
-
-    /*<div>
-      <h1>Jitsiミーティングアプリ</h1>
-      <JitsiMeeting roomName={roomName} isHost={isHost} />
-    </div>*/
+*/
+  
   
 
   const handleLogin = useCallback(() => {
@@ -235,24 +131,7 @@ const fetchData = useCallback(async () => {
     setMessages((prev) => [...prev, newMessage]);
     setUserInput("");
 
-   /* const response = await fetch("/integrations/chat-gpt/conversationgpt4", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: "system",
-            content:
-              "あなたは就活のグループディスカッションの練習相手です。学生の意見に対して建設的なフィードバックを提供してください。",
-          },
-          ...messages,
-          newMessage,
-        ],
-        stream: true,
-      }),
-    });
-
-    handleStreamResponse(response);*/
+  
   };
   const getReservationCount = (date, category) => {
     return reservations.filter(
@@ -287,7 +166,7 @@ const fetchData = useCallback(async () => {
     setShowTimeSlots(false);
   }, []);
   
-  const fetchWithFallback = async (url, options) => {
+ /* const fetchWithFallback = async (url, options) => {
     try {
       const response = await fetch(url, options);
       if (response.ok) {
@@ -300,16 +179,14 @@ const fetchData = useCallback(async () => {
       const fallbackUrl = url.replace(process.env.REACT_APP_API_BASE_URL, "http://localhost:5000");
       return await fetch(fallbackUrl, options);
     }
-  };
+  };*/
   
   
    // マッチング処理
    // 会議URL生成処理
    const handleMatchingStart = async () => {
-    
-  
     try {
-      const response = await fetchWithFallback(`${API_BASE_URL}/api/createOrJoinRoom`, {
+      const response = await fetch(`${API_BASE_URL}/api/createOrJoinRoom`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category: matchingCategory, recording: isRecording }),
@@ -322,14 +199,10 @@ const fetchData = useCallback(async () => {
       const data = await response.json();
       console.log("取得したデータ:", data);
   
-      if (!data.topic || !data.timer) {
-        alert("お題の取得に失敗しました。もう一度試してください。");
-        return;
-      }
-  
       setMeetingUrl(data.join_url);
       setTopic(data.topic); // お題を設定
       setTimer(data.timer); // タイマーを設定
+      setReady(data.ready); // 準備完了状態を設定
       setShowMatchingModal(false);
       setShowDiscussionTopic(true);
     } catch (error) {
@@ -338,84 +211,53 @@ const fetchData = useCallback(async () => {
     }
   };
   
+  // リアルタイムで準備完了状態を確認
+  useEffect(() => {
+    if (!meetingUrl) return;
   
-  
-  
- /*const startMeetingTimer = (meeting) => {
-    meeting.timerInterval = setInterval(() => {
-      if (meeting.timer <= 0) {
-        clearInterval(meeting.timerInterval);
-        console.log(`会議終了: ${meeting.roomName}`);
-        delete meetings[meeting.roomName]; // 部屋を削除
-      } else {
-        meeting.timer -= 1;
-        console.log(`残り時間: ${meeting.timer}秒`);
-      }
-    }, 1000);
-  };
-  
-  
-  
-  
-
-useEffect(() => {
-  const fetchCalendarReservations = async () => {
+    const intervalId = setInterval(async () => {
       try {
-          const response = await fetch("${API_BASE_URL}/api/calendar", {
-              method: "GET",
-              headers: { "Content-Type": "application/json" },
-          });
-
-          if (!response.ok) throw new Error("カレンダー予約データの取得に失敗しました");
-
-          const data = await response.json();
-          setCalendarReservations(data); // 予約データを状態に保存
-      } catch (error) {
-          console.error("カレンダー予約データ取得エラー:", error);
-      }
-  };
-
-  fetchCalendarReservations();
-}, []);*/
-/*
-const handleAddReservation = async (date, timeSlot, category) => {
-  try {
-      const response = await fetch(`${API_BASE_URL}/api/calendar`, {
+        const response = await fetch(`${API_BASE_URL}/api/getRoomDetails`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-              date,
-              timeSlot,
-              category,
-              userId: "current_user_id", // ユーザーIDを適切に設定
-          }),
-      });
-
-      if (!response.ok) throw new Error("予約の作成に失敗しました");
-
-      const newReservation = await response.json();
-      setCalendarReservations((prev) => [...prev, newReservation]); // 状態を更新
-  } catch (error) {
-      console.error("予約作成エラー:", error);
-  }
-};
-
-// 予約をサーバーから削除する関数
-const handleCancelReservation = async (reservationId) => {
-  try {
-      const response = await fetch(
-          `${API_BASE_URL}/api/calendar/${reservationId}`,
-          { method: "DELETE" }
-      );
-
-      if (!response.ok) throw new Error("予約のキャンセルに失敗しました");
-      setReservations((prev) =>
-          prev.filter((reservation) => reservation.id !== reservationId)
-      );
-  } catch (error) {
-      console.error("予約キャンセルエラー:", error);
-  }
-};*/
+          body: JSON.stringify({ roomName: meetingUrl.split("/").pop() }),
+        });
+  
+        if (!response.ok) {
+          throw new Error("部屋の状態を取得できませんでした");
+        }
+  
+        const data = await response.json();
+        console.log("バックエンドからのデータ:", { topic: data.topic, timer: data.timer, ready: data.ready });
+  
+        setTopic(data.topic); // お題を更新
+        setTimer(data.timer); // 残り制限時間を更新
+        setReady(data.ready); // 準備完了状態を更新
+      } catch (error) {
+        console.error("リアルタイム更新失敗:", error);
+      }
+    }, 1000); // 1秒ごとにバックエンドと同期
+  
+    return () => clearInterval(intervalId); // クリーンアップ
+  }, [meetingUrl]);
+  
+  
+  useEffect(() => {
+    if (timer === 0) {
+      alert("会議が終了しました！");
+      // 元の画面に戻るロジックを実行
+      setShowDiscussionTopic(false);
+      setMeetingUrl(null);
+    }
+  }, [timer]);
+  
+  
+  
+  
+  
+  
+  
+ 
 
 return (
   <div className="min-h-screen bg-gray-50">
@@ -486,14 +328,17 @@ return (
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md">
             <div className="text-xl font-bold mb-4 font-noto-sans flex items-center">
-              <i className="fas fa-microphone mr-2 text-[#722F37]"></i>
-              録音データ
+              <i className="fas fa-video mr-2 text-[#722F37]"></i>
+              録画データ
             </div>
             <p className="text-gray-600 font-noto-sans">
-              過去の練習の録音をダウンロード
+              過去の練習の録画をダウンロード
             </p>
-            <button className="mt-4 w-full bg-[#722F37] text-white px-4 py-2 rounded-md hover:bg-[#5a252c] font-noto-sans">
-              録音を確認
+            <button
+              onClick={() => setShowRecordingModal(true)}
+              className="mt-4 w-full bg-[#722F37] text-white px-4 py-2 rounded-md hover:bg-[#5a252c] font-noto-sans"
+            >
+              録画を確認
             </button>
           </div>
         </div>
@@ -528,7 +373,7 @@ return (
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            録音設定
+            録画設定
           </label>
           <div className="flex items-center space-x-4">
             <label className="flex items-center">
@@ -539,7 +384,7 @@ return (
                 onChange={() => setIsRecording(false)}
                 className="mr-2"
               />
-              録音なし
+              録画なし
             </label>
             <label className="flex items-center">
               <input
@@ -549,7 +394,7 @@ return (
                 onChange={() => setIsRecording(true)}
                 className="mr-2"
               />
-              録音あり
+              録画あり
             </label>
           </div>
         </div>
@@ -569,7 +414,12 @@ return (
     {minimized ? (
       <div
         className="bg-white p-2 rounded-lg shadow-lg"
-        style={{ position: "absolute", top: "10px", left: "10px", cursor: "pointer" }}
+        style={{
+          position: "absolute",
+          top: "10px",
+          left: "10px",
+          cursor: "pointer",
+        }}
         onClick={() => setMinimized(false)}
       >
         <h2 className="text-sm font-bold font-noto-sans">お題</h2>
@@ -577,7 +427,13 @@ return (
     ) : (
       <div
         className="bg-white w-full max-w-screen-lg p-4 rounded-t-lg"
-        style={{ position: "absolute", top: "2%", left: "50%", transform: "translateX(-50%)", cursor: "default" }}
+        style={{
+          position: "absolute",
+          top: "2%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          cursor: "default",
+        }}
       >
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold font-noto-sans">ディスカッションお題</h2>
@@ -588,8 +444,20 @@ return (
             最小化
           </button>
         </div>
-        <p className="mt-2 text-gray-600 font-noto-sans">{topic || "お題を生成中..."}</p>
-        <p className="mt-1">制限時間: {Math.floor(timer / 60)}分 {timer % 60}秒</p>
+        {ready && timer ? (
+          <>
+            <p className="mt-2 text-gray-600 font-noto-sans">
+              {topic || "お題を生成中..."}
+            </p>
+            <p className="mt-1">
+              制限時間: {Math.floor(timer / 60)}分 {timer % 60}秒
+            </p>
+          </>
+        ) : (
+          <p className="mt-2 text-gray-600 font-noto-sans">
+            待機中... 他の参加者を待っています。
+          </p>
+        )}
       </div>
     )}
     <div className="w-full h-full bg-black">
@@ -597,6 +465,10 @@ return (
     </div>
   </div>
 )}
+
+
+
+
 
 
 
@@ -979,6 +851,67 @@ return (
           </div>
         </div>
       )}
+
+{showRecordingModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-8 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold font-noto-sans">録画データ</h2>
+                <button
+                  onClick={() => setShowRecordingModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-xl"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="space-y-4 overflow-y-auto max-h-[60vh]">
+                {recordings.length === 0 ? (
+                  <div className="text-center py-8">
+                    <i className="fas fa-video-slash text-gray-400 text-4xl mb-4"></i>
+                    <p className="text-gray-500 font-noto-sans">
+                      録画データはありません
+                    </p>
+                    <p className="text-gray-400 text-sm mt-2">
+                      マッチング時に録画設定をオンにすると、ここに録画データが表示されます
+                    </p>
+                  </div>
+                ) : (
+                  recordings.map((recording, index) => (
+                    <div key={index} className="p-4 border rounded-md">
+                      <p className="font-bold">
+                        {recording.email}_{recording.date}_{recording.category}_
+                        {recording.count}回目
+                      </p>
+                      <div className="flex flex-col space-y-2 mt-2">
+                        <video
+                          controls
+                          src={recording.url}
+                          className="w-full rounded-md"
+                        />
+                        <div className="flex justify-end space-x-2">
+                          <button
+                            onClick={() => handleDownload(recording)}
+                            className="text-[#722F37] hover:text-[#5a252c] px-4 py-2 rounded-md border border-[#722F37] flex items-center"
+                          >
+                            <i className="fas fa-download mr-2"></i>
+                            ダウンロード
+                          </button>
+                          <button
+                            onClick={() => handleSend(recording)}
+                            className="bg-[#722F37] text-white px-4 py-2 rounded-md hover:bg-[#5a252c] flex items-center"
+                          >
+                            <i className="fas fa-paper-plane mr-2"></i>
+                            送信
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
     </main>
     <style jsx>{`
   .container {

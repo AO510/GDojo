@@ -2,8 +2,10 @@
     "name": "hacku",
     "private": true,
     "workspaces": [
-      "frontend",
-      "backend"
-    ]
-  }
-  
+        "frontend",
+        "backend"
+    ],
+    "dependencies": {
+        "react-router-dom": "^5.3.4"
+    }
+}

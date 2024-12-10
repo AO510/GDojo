@@ -1,5 +1,6 @@
 import React from "react";
 import MainCompornent from "./MainCompornent";
+import JitsiMeeting from "./components/JitsiMeeting"; // 作成したJitsiMeetingコンポーネントをインポート
 import "./index.css";
 
 function App() {
@@ -8,6 +9,6 @@ function App() {
         <MainCompornent />
       </div>
     );
-  }
+}
 
 export default App;

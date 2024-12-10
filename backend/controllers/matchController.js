@@ -12,69 +12,61 @@ const generateRoomName = (prefix = "Room") => {
   return `${prefix}_${hash}`;
 };
 
-// 部屋を作成または参加させるエンドポイント
+
+// 部屋作成または参加処理
 router.post("/createOrJoinRoom", (req, res) => {
   try {
     const { category = "general", recording = false } = req.body;
-    console.log("マッチングリクエスト受信:", { category, recording });
-
-    // カテゴリごとに部屋を検索
     let meeting = Object.values(meetings).find(
       (m) => m.category === category && m.recording === recording
     );
 
-    // 部屋がない場合、新規作成
     if (!meeting) {
       const roomName = generateRoomName(category);
+      const { topic, timer } = generateRandomTopicWithTimer(category);
       meeting = {
         roomName,
         category,
         recording,
         participants: 0,
-        maxParticipants: 2, // ここで2人マッチングに固定
-        topic: null,
-        timer: null,
+        maxParticipants: 2,
+        topic,
+        timer,
+        originalTimer: timer,
+        startTime: null,
+        ready: false,
+        timerInterval: null,
       };
       meetings[roomName] = meeting;
-      console.log(`新しい部屋を作成: ${roomName}`);
+      console.log(`新しい部屋を作成: ${roomName}, お題: ${topic}, 制限時間: ${timer}`);
     }
 
-    // 部屋に参加
     meeting.participants++;
-    console.log(
-      `部屋: ${meeting.roomName} | 現在の参加者: ${meeting.participants}/${meeting.maxParticipants}`
-    );
-    res.json({
-      roomName: meeting.roomName,
-      join_url: `https://meet.jit.si/${meeting.roomName}`,
-      participants: meeting.participants,
-      topic: meeting.topic, // お題
-      timer: meeting.timer, // タイマー
-    });
-    
 
-    // 全員揃ったらお題を設定
-    if (meeting.participants === meeting.maxParticipants && !meeting.topic) {
-      const { topic, timer } = generateRandomTopicWithTimer(category);
-      meeting.topic = topic;
-      meeting.timer = timer;
-      console.log(`お題設定: ${topic}, タイマー: ${timer}秒`);
-      startMeetingTimer(meeting);
+    if (meeting.participants === meeting.maxParticipants) {
+      meeting.ready = true;
+      startMeetingTimer(meeting); // タイマーを開始
     }
 
-    // フロントエンドに返却
+    const remainingTime = meeting.ready
+      ? Math.max(meeting.originalTimer - Math.floor((Date.now() - meeting.startTime) / 1000), 0)
+      : null;
+
     res.status(200).json({
       roomName: meeting.roomName,
       join_url: `https://meet.jit.si/${meeting.roomName}`,
       participants: meeting.participants,
-      topic: meeting.topic || "参加者を待っています...",
-      timer: meeting.timer || 0,
+      topic: meeting.ready ? meeting.topic : null,
+      timer: remainingTime,
+      ready: meeting.ready,
     });
   } catch (error) {
     console.error("部屋作成または参加中にエラー:", error);
     res.status(500).json({ error: "部屋の作成または参加に失敗しました。" });
   }
 });
+
+
 
 // 部屋を削除するエンドポイント
 router.post("/deleteRoom", (req, res) => {
@@ -99,27 +91,46 @@ router.get("/listAllRooms", (req, res) => {
   res.status(200).json({ meetings });
 });
 
-// 特定の部屋の詳細情報を取得するエンドポイント
 router.post("/getRoomDetails", (req, res) => {
-  try {
-    const { roomName } = req.body;
+  const { roomName } = req.body;
 
-    if (!roomName || !meetings[roomName]) {
-      return res.status(404).json({ error: "部屋が見つかりません。" });
-    }
-
-    res.status(200).json(meetings[roomName]);
-  } catch (error) {
-    console.error("部屋詳細取得時にエラーが発生しました:", error);
-    res.status(500).json({ error: "部屋の詳細情報の取得に失敗しました。" });
+  if (!roomName || !meetings[roomName]) {
+    return res.status(404).json({ error: "部屋が見つかりません。" });
   }
+
+  const meeting = meetings[roomName];
+
+  // 残り時間を計算
+  const remainingTime = meeting.ready
+    ? Math.max(meeting.originalTimer - Math.floor((Date.now() - meeting.startTime) / 1000), 0)
+    : null;
+
+  console.log({
+    roomName: meeting.roomName,
+    topic: meeting.ready ? meeting.topic : null,
+    timer: remainingTime, // 残り時間を計算して返す
+    ready: meeting.ready,
+  });
+
+  res.status(200).json({
+    roomName: meeting.roomName,
+    topic: meeting.ready ? meeting.topic : null,
+    timer: remainingTime,
+    ready: meeting.ready,
+  });
 });
+
+
+
+
+
+
 
 // お題生成関数
 const generateRandomTopicWithTimer = (category) => {
   const topics = {
     general: [{ topic: "働き方改革について", timer: 300 }],
-    情報系: [{ topic: "AIの課題", timer: 300 }],
+    情報系: [{ topic: "AIの課題", timer: 10 }],
     メーカー系: [{ topic: "環境に優しい製品設計", timer: 300 }],
     金融系: [{ topic: "キャッシュレス社会", timer: 300 }],
   };
@@ -130,19 +141,40 @@ const generateRandomTopicWithTimer = (category) => {
   return selectedTopic;
 };
 
-// タイマー処理
+// タイマー開始関数
 const startMeetingTimer = (meeting) => {
-  meeting.timerInterval = setInterval(() => {
-    if (meeting.timer <= 0) {
-      clearInterval(meeting.timerInterval);
-      setTimeout(() => {
-        console.log(`会議終了: ${meeting.roomName}`);
-        delete meetings[meeting.roomName];
-      }, 30000);
-    } else {
-      meeting.timer -= 1;
-    }
-  }, 1000);
+  if (!meeting.startTime) {
+    meeting.startTime = Date.now(); // タイマーの開始時間を記録
+  }
+
+  if (!meeting.timerInterval) {
+    meeting.timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - meeting.startTime) / 1000);
+      meeting.timer = Math.max(meeting.originalTimer - elapsed, 0);
+
+      // タイマー終了時
+      if (meeting.timer <= 0) {
+        clearInterval(meeting.timerInterval);
+        meeting.timerInterval = null;
+        console.log(`タイマー終了: 部屋 ${meeting.roomName}`);
+      }
+    }, 1000); // 1秒ごとにタイマーを更新
+  }
 };
+
+
+
+// 会議終了処理
+router.post("/meetingEnd", (req, res) => {
+  const { roomName } = req.body;
+
+  if (meetings[roomName]) {
+    delete meetings[roomName];
+    return res.json({ message: "会議終了処理が完了しました。" });
+  }
+
+  res.status(404).json({ error: "部屋が見つかりません。" });
+});
+
 
 module.exports = router;
