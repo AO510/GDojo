@@ -210,6 +210,36 @@ const fetchData = useCallback(async () => {
       alert("会議の開始に失敗しました。再試行してください。");
     }
   };
+
+  useEffect(() => {
+    if (!meetingUrl) return;
+  
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/getRoomDetails`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomName: meetingUrl.split("/").pop() }),
+        });
+  
+        if (!response.ok) {
+          throw new Error("部屋の状態を取得できませんでした");
+        }
+  
+        const data = await response.json();
+        console.log("バックエンドからのデータ:", { topic: data.topic, timer: data.timer, ready: data.ready });
+  
+        setTopic(data.topic); // お題を更新
+        setTimer(data.timer); // 残り制限時間を更新
+        setReady(data.ready); // 準備完了状態を更新
+      } catch (error) {
+        console.error("リアルタイム更新失敗:", error);
+      }
+    }, 1000); // 1秒ごとにバックエンドと同期
+  
+    return () => clearInterval(intervalId); // クリーンアップ
+  }, [meetingUrl]);
+  
   
   // リアルタイムで準備完了状態を確認
   useEffect(() => {
