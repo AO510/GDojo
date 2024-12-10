@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import JitsiMeeting from './components/JitsiMeeting';
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 
 import {
@@ -27,7 +27,7 @@ function MainComponent() {
   const [timer, setTimer] = useState(); // 初期値300秒（5分）
   const [topic, setTopic] = useState(null);
   const [minimized, setMinimized] = useState(false); // minimized状態を追加
-  const history = useHistory();
+  const navigate = useNavigate();
   const [ready, setReady] = useState(false); // 状態を初期化
 
 
