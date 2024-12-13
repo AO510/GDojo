@@ -299,63 +299,68 @@ const fetchData = useCallback(async () => {
    
   
   // 録画の開始と停止
-  useEffect(() => {
-    if (ready && timer > 0 && !isRecording) {
-      // 会議が始まり、お題が出たタイミングで録画を開始
-      navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-        .then((stream) => {
-          const recorder = new MediaRecorder(stream);
-          mediaRecorderRef.current = recorder;
-          const chunks = [];
-  
-          recorder.ondataavailable = (event) => {
-            chunks.push(event.data);
+ // 録画の開始と停止
+useEffect(() => {
+  if (ready && timer > 0 && !isRecording) {
+    // Jitsiコンテナから画面ストリームをキャプチャ
+    const videoContainer = document.querySelector("#jitsi-container");
+    if (videoContainer) {
+      const stream = videoContainer.querySelector("iframe")?.captureStream();
+      if (stream) {
+        const recorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
+        const chunks = [];
+
+        recorder.ondataavailable = (event) => {
+          chunks.push(event.data);
+        };
+
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const recordingData = {
+            url,
+            email: "user@example.com", // 仮のユーザー情報
+            date: new Date().toISOString(),
+            category: "discussion",
+            count: recordings.length + 1,
           };
-  
-          recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: "video/webm" });
-            const url = URL.createObjectURL(blob);
-            const recordingData = {
-              url,
-              email: "user@example.com", // 仮のユーザー情報
-              date: new Date().toISOString(),
-              category: "discussion",
-              count: recordings.length + 1,
-            };
-  
-            setRecordings((prev) => [...prev, recordingData]);
-          };
-  
-          recorder.start();
-          mediaStreamRef.current = stream; // ストリームを保存
-          setIsRecording(true); // 録画状態を更新
-          console.log("録画を開始しました");
-        })
-        .catch((err) => {
-          console.error("録画の開始に失敗しました:", err);
-          setIsRecording(false);
-        });
+
+          setRecordings((prev) => [...prev, recordingData]);
+          console.log("画面録画が停止されました");
+        };
+
+        recorder.start();
+        mediaStreamRef.current = stream; // ストリームを保存
+        setIsRecording(true); // 録画状態を更新
+        console.log("画面録画を開始しました");
+      } else {
+        console.error("画面ストリームのキャプチャに失敗しました");
+      }
+    } else {
+      console.error("Jitsiコンテナが見つかりません");
     }
-  
-    // 録画停止の処理
-    if (timer === 0 && isRecording && mediaRecorderRef.current) {
-      console.log("タイマーが終了したため、録画を停止します");
+  }
+
+  // 録画停止の処理
+  if (timer === 0 && isRecording && mediaRecorderRef.current) {
+    console.log("タイマーが終了したため、録画を停止します");
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop()); // ストリーム停止
+    }
+  }
+
+  return () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((track) => track.stop()); // ストリーム停止
-      }
     }
-  
-    return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        mediaRecorderRef.current.stop();
-      }
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [ready, timer, isRecording]);
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+    }
+  };
+}, [ready, timer, isRecording]);
 
 // タイマー終了時の処理
 useEffect(() => {
