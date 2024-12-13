@@ -293,63 +293,63 @@ const fetchData = useCallback(async () => {
     };
   }, [meetingUrl]);
   
+   
+  
+ // 録画の開始と停止
+ useEffect(() => {
+  if (isRecording && ready) {
+    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      .then((stream) => {
+        const recorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
+        const chunks = [];
 
-  
-  useEffect(() => {
-    if (isRecording && ready) {
-      navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-        .then((stream) => {
-          const recorder = new MediaRecorder(stream);
-          mediaRecorderRef.current = recorder;
-          const chunks = [];
-  
-          recorder.ondataavailable = (event) => {
-            chunks.push(event.data);
+        recorder.ondataavailable = (event) => {
+          chunks.push(event.data);
+        };
+
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const recordingData = {
+            url,
+            email: "user@example.com", // ユーザー情報（仮）
+            date: new Date().toISOString(),
+            category: "discussion",
+            count: recordings.length + 1,
           };
-  
-          recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: "video/webm" });
-            const url = URL.createObjectURL(blob);
-            const recordingData = {
-              url,
-              email: "user@example.com", // 例: ユーザーの識別情報
-              date: new Date().toISOString().split("T")[0],
-              category: "discussion",
-              count: recordings.length + 1,
-            };
-  
-            setRecordings((prev) => [...prev, recordingData]);
-            URL.revokeObjectURL(url); // 後でメモリを解放
-          };
-  
-          recorder.start();
-        })
-        .catch((err) => {
-          console.error("録画の開始に失敗しました:", err);
-          setIsRecording(false);
-        });
-    }
-  
-    return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        mediaRecorderRef.current.stop();
-      }
-    };
-  }, [isRecording, ready]);
-  
-  useEffect(() => {
-    if (timer === 0) {
-      alert("会議が終了しました！");
-      // 録画を停止
-      if (isRecording && mediaRecorderRef.current) {
-        mediaRecorderRef.current.stop();
+
+          setRecordings((prev) => [...prev, recordingData]);
+          URL.revokeObjectURL(url); // メモリ解放
+        };
+
+        recorder.start();
+      })
+      .catch((err) => {
+        console.error("録画の開始に失敗しました:", err);
         setIsRecording(false);
-      }
-      // 元の画面に戻るロジックを実行
-      setShowDiscussionTopic(false);
-      setMeetingUrl(null);
+      });
+  }
+
+  return () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
     }
-  }, [timer]);
+  };
+}, [isRecording, ready]);
+
+// タイマー終了時の処理
+useEffect(() => {
+  if (timer === 0) {
+    alert("会議が終了しました！");
+    if (isRecording && mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+    setReady(false);
+  }
+}, [timer]);
+
   
   
   
@@ -497,6 +497,30 @@ return (
               録画あり
             </label>
           </div>
+
+          {/* 会議情報 */}
+      {ready && timer > 0 && (
+        <div>
+          <h2 className="font-bold">残り時間: {Math.floor(timer / 60)}分 {timer % 60}秒</h2>
+          {isRecording ? <p>録画中...</p> : <p>録画していません</p>}
+        </div>
+      )}
+
+      {/* 録画データモーダル */}
+      {recordings.length > 0 && (
+        <div className="mt-6">
+          <h3 className="font-bold">録画データ</h3>
+          {recordings.map((recording, index) => (
+            <div key={index} className="border p-4 mt-2">
+              <p>録画 {index + 1}: {recording.date}</p>
+              <video controls src={recording.url} className="w-full mt-2"></video>
+            </div>
+          ))}
+        </div>
+      )}
+  
+  
+
         </div>
         <button
           onClick={handleMatchingStart} // ここで直接関数を呼び出す
