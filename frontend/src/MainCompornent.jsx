@@ -32,7 +32,7 @@ function MainComponent() {
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null); // ここでmediaStreamRefを初期化
   const videoContainerRef = useRef(null); // フルスクリーン対象の参照
-
+ 
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -299,62 +299,71 @@ const fetchData = useCallback(async () => {
    
   
   // 録画の開始と停止
-useEffect(() => {
-  if (isRecording && ready) {
-    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-      .then((stream) => {
-        const recorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = recorder;
-        const chunks = [];
-
-        recorder.ondataavailable = (event) => {
-          chunks.push(event.data);
-        };
-
-        recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: "video/webm" });
-          const url = URL.createObjectURL(blob);
-          const recordingData = {
-            url,
-            email: "user@example.com", // 仮のユーザー情報
-            date: new Date().toISOString(),
-            category: "discussion",
-            count: recordings.length + 1,
+  useEffect(() => {
+    if (ready && timer > 0 && !isRecording) {
+      // 会議が始まり、お題が出たタイミングで録画を開始
+      navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+        .then((stream) => {
+          const recorder = new MediaRecorder(stream);
+          mediaRecorderRef.current = recorder;
+          const chunks = [];
+  
+          recorder.ondataavailable = (event) => {
+            chunks.push(event.data);
           };
-
-          setRecordings((prev) => [...prev, recordingData]);
-          // 録画データは必要な場合まで保持し、ダウンロード時に削除
-          // URL.revokeObjectURL(url); 
-        };
-
-        recorder.start();
-        mediaStreamRef.current = stream; // 後で停止時に利用
-      })
-      .catch((err) => {
-        console.error("録画の開始に失敗しました:", err);
-        setIsRecording(false);
-      });
-  }
-
-  return () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+  
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: "video/webm" });
+            const url = URL.createObjectURL(blob);
+            const recordingData = {
+              url,
+              email: "user@example.com", // 仮のユーザー情報
+              date: new Date().toISOString(),
+              category: "discussion",
+              count: recordings.length + 1,
+            };
+  
+            setRecordings((prev) => [...prev, recordingData]);
+          };
+  
+          recorder.start();
+          mediaStreamRef.current = stream; // ストリームを保存
+          setIsRecording(true); // 録画状態を更新
+          console.log("録画を開始しました");
+        })
+        .catch((err) => {
+          console.error("録画の開始に失敗しました:", err);
+          setIsRecording(false);
+        });
+    }
+  
+    // 録画停止の処理
+    if (timer === 0 && isRecording && mediaRecorderRef.current) {
+      console.log("タイマーが終了したため、録画を停止します");
       mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop()); // ストリーム停止
+      }
     }
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop()); // ストリーム停止
-    }
-  };
-}, [isRecording, ready]);
+  
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [ready, timer, isRecording]);
 
 // タイマー終了時の処理
 useEffect(() => {
   if (timer === 0) {
     alert("会議が終了しました！");
-    if (isRecording && mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-    setReady(false);
+    setReady(false); // 会議状態を終了
+    setShowDiscussionTopic(false);
+    setMeetingUrl(null); // 会議のURLをリセット
   }
 }, [timer]);
 
@@ -396,14 +405,25 @@ const handlePauseResume = () => {
 
 // ページを閉じる際のクリーンアップ
 useEffect(() => {
-  return () => {
-    recordings.forEach((recording) => {
-      URL.revokeObjectURL(recording.url);
+  const handleBeforeUnload = (event) => {
+    // 部屋から退出したことを通知
+    fetch(`${API_BASE_URL}/api/leaveRoom`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomName: meetingUrl.split("/").pop() }),
     });
-    console.log("すべての録画データのURLを解放しました");
-  };
-}, [recordings]);
 
+    // 状態をリセット
+    setShowDiscussionTopic(false);
+    setMeetingUrl(null);
+  };
+
+  window.addEventListener("beforeunload", handleBeforeUnload);
+
+  return () => {
+    window.removeEventListener("beforeunload", handleBeforeUnload);
+  };
+}, [meetingUrl]);
   
   // 初期状態でフルスクリーンにする
   useEffect(() => {
