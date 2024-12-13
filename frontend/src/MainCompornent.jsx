@@ -31,7 +31,7 @@ function MainComponent() {
   const [ready, setReady] = useState(false); // 状態を初期化
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null); // ここでmediaStreamRefを初期化
-
+  const videoContainerRef = useRef(null); // フルスクリーン対象の参照
 
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -405,8 +405,23 @@ useEffect(() => {
 }, [recordings]);
 
   
-  
-  
+  // 初期状態でフルスクリーンにする
+  useEffect(() => {
+    const requestFullScreen = async () => {
+      if (videoContainerRef.current) {
+        try {
+          await videoContainerRef.current.requestFullscreen();
+          console.log("初期状態でフルスクリーンにしました");
+        } catch (err) {
+          console.error("初期状態でフルスクリーンに失敗しました:", err);
+        }
+      }
+    };
+
+    // DOMが完全に準備された後にフルスクリーンリクエスト
+    requestFullScreen();
+  }, []);
+
   
   
   
@@ -567,17 +582,23 @@ return (
     </div>
   </div>
 )}
-
 {showDiscussionTopic && meetingUrl && (
   <div className="fixed inset-0 bg-black flex flex-col items-center z-50">
+    {/* お題の表示部分 */}
     {minimized ? (
       <div
         className="bg-white p-2 rounded-lg shadow-lg"
         style={{
-          position: "absolute",
-          top: "10px",
-          left: "10px",
+          position: "fixed",
+          bottom: "20px", // 画面下部に固定
+          right: "20px", // 画面右下に配置
           cursor: "pointer",
+          width: "150px", // 小さすぎないよう適切な幅を設定
+          height: "50px", // 高さも見やすく設定
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 1001, // Jitsiコンテナより上に表示
         }}
         onClick={() => setMinimized(false)}
       >
@@ -587,11 +608,11 @@ return (
       <div
         className="bg-white w-full max-w-screen-lg p-4 rounded-t-lg"
         style={{
-          position: "absolute",
-          top: "2%",
+          position: "fixed", // 固定配置でスクロールしても常に表示
+          top: "0px",
           left: "50%",
           transform: "translateX(-50%)",
-          cursor: "default",
+          zIndex: 1000, // Jitsiコンテナより上に配置
         }}
       >
         <div className="flex justify-between items-center">
@@ -619,11 +640,14 @@ return (
         )}
       </div>
     )}
+
+    {/* Jitsiコンテナ */}
     <div className="w-full h-full bg-black">
       <JitsiMeeting roomName={meetingUrl.split("/").pop()} />
     </div>
   </div>
 )}
+
 
 
 

@@ -27,7 +27,7 @@ const JitsiMeeting = ({ roomName }) => {
 
       const domain = "meet.jit.si";
       const options = {
-        roomName: roomName || `Room_${Math.random().toString(36).substr(2, 9)}`, // ランダムな部屋名生成
+        roomName: roomName || `Room_${Math.random().toString(36).substr(2, 9)}`,
         parentNode: jitsiContainerRef.current,
         width: "100%",
         height: "100%",
@@ -65,11 +65,13 @@ const JitsiMeeting = ({ roomName }) => {
         const api = new window.JitsiMeetExternalAPI(domain, options);
         apiRef.current = api;
 
+        // フルスクリーンの初期化
+        api.executeCommand("toggleVideo");
+
         api.addEventListener("videoConferenceJoined", () => {
           console.log("会議に参加しました");
         });
 
-        // 録画機能のリスナーを設定
         api.addEventListener("recordingStatusChanged", (event) => {
           console.log("録画ステータス: ", event.status);
         });
@@ -80,7 +82,6 @@ const JitsiMeeting = ({ roomName }) => {
 
     loadJitsiScript(initJitsi);
 
-    // クリーンアップ処理
     return () => {
       if (apiRef.current) {
         apiRef.current.dispose();
@@ -92,7 +93,7 @@ const JitsiMeeting = ({ roomName }) => {
   const startRecording = () => {
     if (apiRef.current) {
       apiRef.current.executeCommand("startRecording", {
-        mode: "file", // または "stream" （サーバー設定に依存）
+        mode: "file", // サーバー設定に依存
       });
     }
   };
@@ -105,21 +106,39 @@ const JitsiMeeting = ({ roomName }) => {
     }
   };
 
+  const toggleFullScreen = () => {
+    if (jitsiContainerRef.current) {
+      if (!document.fullscreenElement) {
+        jitsiContainerRef.current.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    }
+  };
+
   return (
     <div>
       <div
         ref={jitsiContainerRef}
         style={{
           width: "100%",
-          height: "100%",
+          height: "100vh",
           backgroundColor: "black",
+          position: "relative",
         }}
       ></div>
-      <div style={{ marginTop: "20px", textAlign: "center" }}>
-        <button onClick={startRecording} style={{ marginRight: "10px" }}>
-          録画開始
-        </button>
-        <button onClick={stopRecording}>録画停止</button>
+      <div
+        style={{
+          marginTop: "20px",
+          textAlign: "center",
+          position: "absolute",
+          bottom: "10px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 1000,
+        }}
+      >
+        
       </div>
     </div>
   );
