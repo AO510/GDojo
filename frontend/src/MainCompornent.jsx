@@ -552,26 +552,7 @@ return (
             </label>
           </div>
 
-          {/* 会議情報 */}
-      {ready && timer > 0 && (
-        <div>
-          <h2 className="font-bold">残り時間: {Math.floor(timer / 60)}分 {timer % 60}秒</h2>
-          {isRecording ? <p>録画中...</p> : <p>録画していません</p>}
-        </div>
-      )}
-
-      {/* 録画データモーダル */}
-      {recordings.length > 0 && (
-        <div className="mt-6">
-          <h3 className="font-bold">録画データ</h3>
-          {recordings.map((recording, index) => (
-            <div key={index} className="border p-4 mt-2">
-              <p>録画 {index + 1}: {recording.date}</p>
-              <video controls src={recording.url} className="w-full mt-2"></video>
-            </div>
-          ))}
-        </div>
-      )}
+         
   
   
 
