@@ -68,6 +68,11 @@ const JitsiMeeting = ({ roomName }) => {
         api.addEventListener("videoConferenceJoined", () => {
           console.log("会議に参加しました");
         });
+
+        // 録画機能のリスナーを設定
+        api.addEventListener("recordingStatusChanged", (event) => {
+          console.log("録画ステータス: ", event.status);
+        });
       } catch (error) {
         console.error("Failed to create JitsiMeetExternalAPI instance", error);
       }
@@ -84,15 +89,39 @@ const JitsiMeeting = ({ roomName }) => {
     };
   }, [roomName]);
 
+  const startRecording = () => {
+    if (apiRef.current) {
+      apiRef.current.executeCommand("startRecording", {
+        mode: "file", // または "stream" （サーバー設定に依存）
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (apiRef.current) {
+      apiRef.current.executeCommand("stopRecording", {
+        mode: "file",
+      });
+    }
+  };
+
   return (
-    <div
-      ref={jitsiContainerRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        backgroundColor: "black",
-      }}
-    ></div>
+    <div>
+      <div
+        ref={jitsiContainerRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          backgroundColor: "black",
+        }}
+      ></div>
+      <div style={{ marginTop: "20px", textAlign: "center" }}>
+        <button onClick={startRecording} style={{ marginRight: "10px" }}>
+          録画開始
+        </button>
+        <button onClick={stopRecording}>録画停止</button>
+      </div>
+    </div>
   );
 };
 
