@@ -300,7 +300,7 @@ const fetchData = useCallback(async () => {
   
   // 録画の開始と停止
  // 録画の開始と停止
-useEffect(() => {
+ useEffect(() => {
   if (ready && timer > 0 && !isRecording) {
     // Jitsiコンテナから画面ストリームをキャプチャ
     const videoContainer = document.querySelector("#jitsi-container");
@@ -429,23 +429,23 @@ useEffect(() => {
     window.removeEventListener("beforeunload", handleBeforeUnload);
   };
 }, [meetingUrl]);
-  
-  // 初期状態でフルスクリーンにする
-  useEffect(() => {
-    const requestFullScreen = async () => {
-      if (videoContainerRef.current) {
-        try {
-          await videoContainerRef.current.requestFullscreen();
-          console.log("初期状態でフルスクリーンにしました");
-        } catch (err) {
-          console.error("初期状態でフルスクリーンに失敗しました:", err);
-        }
-      }
-    };
 
-    // DOMが完全に準備された後にフルスクリーンリクエスト
-    requestFullScreen();
-  }, []);
+// 初期状態でフルスクリーンにする
+useEffect(() => {
+  const requestFullScreen = async () => {
+    if (videoContainerRef.current) {
+      try {
+        await videoContainerRef.current.requestFullscreen();
+        console.log("初期状態でフルスクリーンにしました");
+      } catch (err) {
+        console.error("初期状態でフルスクリーンに失敗しました:", err);
+      }
+    }
+  };
+
+  // DOMが完全に準備された後にフルスクリーンリクエスト
+  requestFullScreen();
+}, []);
 
   
   
