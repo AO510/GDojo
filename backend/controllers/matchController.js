@@ -29,7 +29,7 @@ router.post("/createOrJoinRoom", (req, res) => {
         category,
         recording,
         participants: 0,
-        maxParticipants: 4,//最大人数
+        maxParticipants: 2,//最大人数
         topic,
         timer,
         originalTimer: timer,
