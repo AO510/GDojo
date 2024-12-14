@@ -32,7 +32,8 @@ function MainComponent() {
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null); // ここでmediaStreamRefを初期化
   const videoContainerRef = useRef(null); // フルスクリーン対象の参照
- 
+  
+  
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -298,87 +299,76 @@ const fetchData = useCallback(async () => {
   
    
   
-  // 録画の開始と停止
+
+ 
  // 録画の開始と停止
- useEffect(() => {
-  // 録画を開始する関数
-  const startJitsiRecording = async () => {
-    try {
-      // Jitsi iframe を取得
-      const iframe = document.querySelector("#jitsi-container iframe");
-      if (!iframe) throw new Error("Jitsiコンテナのiframeが見つかりません");
+// 録画を開始する関数
+const startScreenRecording = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        cursor: "always", // マウスカーソルも表示
+      },
+      audio: true, // 必要に応じて音声もキャプチャ
+    });
 
-      const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!iframeDocument) throw new Error("iframe内のドキュメントを取得できません");
+    console.log("画面録画用ストリームを取得しました:", stream);
 
-      // iframe 内の video 要素を取得
-      const videoElement = iframeDocument.querySelector("video");
-      if (!videoElement) throw new Error("iframe内のvideo要素が見つかりません");
+    const recorder = new MediaRecorder(stream);
+    mediaRecorderRef.current = recorder;
+    const chunks = [];
 
-      // video 要素のストリームを取得
-      const stream = videoElement.captureStream();
-      if (!stream) throw new Error("video要素からストリームの取得に失敗しました");
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        chunks.push(event.data);
+      }
+    };
 
-      console.log("Jitsi 内のストリームを取得しました:", stream);
+    recorder.onstop = () => {
+      if (chunks.length > 0) {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
 
-      // MediaRecorder の初期化
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      const chunks = [];
+        const recordingData = {
+          url,
+          email: "user@example.com", // 仮のユーザー情報
+          date: new Date().toISOString(),
+          category: "discussion",
+          count: recordings.length + 1,
+        };
 
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
+        setRecordings((prev) => [...prev, recordingData]);
+        console.log("録画が完了し保存されました:", recordingData);
+      } else {
+        console.error("録画データがありません。");
+      }
 
-      recorder.onstop = () => {
-        if (chunks.length > 0) {
-          const blob = new Blob(chunks, { type: "video/webm" });
-          const url = URL.createObjectURL(blob);
+      stream.getTracks().forEach((track) => track.stop());
+    };
 
-          const recordingData = {
-            url,
-            email: "user@example.com", // 仮のユーザー情報
-            date: new Date().toISOString(),
-            category: "discussion",
-            count: recordings.length + 1,
-          };
+    recorder.start();
+    mediaStreamRef.current = stream;
+    setIsRecording(true);
+    console.log("画面録画を開始しました");
+  } catch (error) {
+    console.error("画面録画の開始中にエラーが発生しました:", error);
+  }
+};
 
-          setRecordings((prev) => [...prev, recordingData]);
-          console.log("録画が完了し保存されました:", recordingData);
-        } else {
-          console.error("録画データがありません。");
-        }
-      };
-
-      // 録画を開始
-      recorder.start();
-      mediaStreamRef.current = stream; // ストリームを保存
-      setIsRecording(true);
-      console.log("Jitsi 内の録画を開始しました");
-    } catch (error) {
-      console.error("録画の開始中にエラーが発生しました:", error);
-    }
-  };
-
-  // 録画の開始条件
+// タイマーに応じて録画を開始/停止
+useEffect(() => {
   if (ready && timer > 0 && !isRecording) {
-    startJitsiRecording();
+    startScreenRecording();
   }
 
-  // タイマー終了時に録画を停止
-  if (timer === 0 && isRecording && mediaRecorderRef.current) {
+  if (timer === 0 && isRecording) {
     console.log("タイマーが終了したため、録画を停止します。");
-    mediaRecorderRef.current.stop();
-    setIsRecording(false);
-
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
     }
+    setIsRecording(false);
   }
 
-  // クリーンアップ処理
   return () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
@@ -390,6 +380,28 @@ const fetchData = useCallback(async () => {
   };
 }, [ready, timer, isRecording]);
 
+// 録画データのダウンロード
+const handleDownload = (recording) => {
+  const a = document.createElement("a");
+  a.href = recording.url;
+  a.download = `recording_${recording.date}.webm`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  setTimeout(() => {
+    URL.revokeObjectURL(recording.url);
+    console.log("録画データのURLを解放しました");
+  }, 1000);
+};
+
+// 録画データの送信（仮実装）
+const handleSend = (recording) => {
+  console.log(`録画 ${recording.date} を送信するためのAPIリクエストを作成します`);
+  alert(`録画 ${recording.date} を送信しました`);
+};
+
+
 // タイマー終了時の処理
 useEffect(() => {
   if (timer === 0) {
@@ -400,54 +412,15 @@ useEffect(() => {
   }
 }, [timer]);
 
-
-// ダウンロード処理の改善
-const handleDownload = (recording) => {
-  const a = document.createElement("a");
-  a.href = recording.url;
-  a.download = `recording_${recording.date}.webm`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  // URLのメモリ解放
-  setTimeout(() => {
-    URL.revokeObjectURL(recording.url);
-    console.log("録画データのURLを解放しました");
-  }, 1000);
-};
-
-// 録画送信の仮実装
-const handleSend = (recording) => {
-  // バックエンド連携などの送信処理をここに実装
-  console.log(`録画 ${recording.date} を送信するためのAPIリクエストを作成します`);
-  alert(`録画 ${recording.date} を送信しました`);
-};
-
-// 録画一時停止・再開機能
-const handlePauseResume = () => {
-  if (mediaRecorderRef.current) {
-    if (mediaRecorderRef.current.state === "recording") {
-      mediaRecorderRef.current.pause();
-      console.log("録画を一時停止しました");
-    } else if (mediaRecorderRef.current.state === "paused") {
-      mediaRecorderRef.current.resume();
-      console.log("録画を再開しました");
-    }
-  }
-};
-
 // ページを閉じる際のクリーンアップ
 useEffect(() => {
   const handleBeforeUnload = (event) => {
-    // 部屋から退出したことを通知
     fetch(`${API_BASE_URL}/api/leaveRoom`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ roomName: meetingUrl.split("/").pop() }),
     });
 
-    // 状態をリセット
     setShowDiscussionTopic(false);
     setMeetingUrl(null);
   };
@@ -472,9 +445,9 @@ useEffect(() => {
     }
   };
 
-  // DOMが完全に準備された後にフルスクリーンリクエスト
   requestFullScreen();
 }, []);
+
 
   
   
@@ -483,6 +456,8 @@ useEffect(() => {
  
 
 return (
+ 
+
   <div className="min-h-screen bg-gray-50">
     <header className="bg-white shadow-sm">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -636,6 +611,8 @@ return (
     </div>
   </div>
 )}
+
+
 {showDiscussionTopic && meetingUrl && (
   <div className="fixed inset-0 bg-black flex flex-col items-center z-50">
     {/* お題の表示部分 */}
@@ -1090,85 +1067,57 @@ return (
       )}
 
 {showRecordingModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white p-8 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold font-noto-sans">録画データ</h2>
-        <button
-          onClick={() => setShowRecordingModal(false)}
-          className="text-gray-500 hover:text-gray-700 text-xl"
-        >
-          <i className="fas fa-times"></i>
-        </button>
-      </div>
-      <div className="space-y-4 overflow-y-auto max-h-[60vh]">
-        {recordings.length === 0 ? (
-          <div className="text-center py-8">
-            <i className="fas fa-video-slash text-gray-400 text-4xl mb-4"></i>
-            <p className="text-gray-500 font-noto-sans">
-              録画データはありません
-            </p>
-            <p className="text-gray-400 text-sm mt-2">
-              録画を有効にすると、ここに録画データが表示されます。
-            </p>
-          </div>
-        ) : (
-          recordings.map((recording, index) => (
-            <div key={index} className="p-4 border rounded-md">
-              <p className="font-bold">
-                {recording.email}_{recording.date}_{recording.category}_
-                {recording.count}回目
-              </p>
-              <div className="flex flex-col space-y-2 mt-2">
-                <video
-                  controls
-                  src={recording.url}
-                  className="w-full rounded-md"
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                    console.error("動画の再生中にエラーが発生しました。");
-                  }}
-                />
-                <div className="flex justify-end space-x-2">
-                  <button
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          `この録画 (${recording.date}) をダウンロードしますか？`
-                        )
-                      ) {
-                        handleDownload(recording);
-                      }
-                    }}
-                    className="text-[#722F37] hover:text-[#5a252c] px-4 py-2 rounded-md border border-[#722F37] flex items-center"
-                  >
-                    <i className="fas fa-download mr-2"></i>
-                    ダウンロード
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          `この録画 (${recording.date}) を送信しますか？`
-                        )
-                      ) {
-                        handleSend(recording);
-                      }
-                    }}
-                    className="bg-[#722F37] text-white px-4 py-2 rounded-md hover:bg-[#5a252c] flex items-center"
-                  >
-                    <i className="fas fa-paper-plane mr-2"></i>
-                    送信
-                  </button>
-                        </div>
-                      </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold font-noto-sans">録画データ</h2>
+              <button
+                onClick={() => setShowRecordingModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="space-y-4 overflow-y-auto max-h-[60vh]">
+              {recordings.length === 0 ? (
+                <div className="text-center py-8">
+                  <i className="fas fa-video-slash text-gray-400 text-4xl mb-4"></i>
+                  <p className="text-gray-500 font-noto-sans">
+                    録画データはありません
+                  </p>
+                  <p className="text-gray-400 text-sm mt-2">
+                    会議開始時に録画が有効になります。
+                  </p>
+                </div>
+              ) : (
+                recordings.map((recording, index) => (
+                  <div key={index} className="p-4 border rounded-md">
+                    <p className="font-bold">
+                      {recording.email}_{recording.date}_{recording.category}_
+                      {recording.count}回目
+                    </p>
+                    <video controls src={recording.url} className="w-full rounded-md" />
+                    <div className="flex justify-end space-x-2 mt-2">
+                      <button
+                        onClick={() => handleDownload(recording)}
+                        className="text-blue-500 hover:text-blue-700"
+                      >
+                        ダウンロード
+                      </button>
+                      <button
+                        onClick={() => handleSend(recording)}
+                        className="text-green-500 hover:text-green-700"
+                      >
+                        送信
+                      </button>
                     </div>
-                  ))
-                )}
-              </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
-        )}
+        </div>
+      )}
     </main>
     <style jsx>{`
   .container {
@@ -1275,9 +1224,9 @@ return (
 `}</style>
   </div>
 );
+
+
 }
-
-
 
 
 
