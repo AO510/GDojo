@@ -455,8 +455,14 @@ useEffect(() => {
   requestFullScreen();
 }, []);
 
+// 既存のインポートや状態定義の直後
+const handleRecordingStop = (recordingData) => {
+  setRecordings((prev) => [...prev, recordingData]);
+  console.log("[INFO] 録画データを受信しました:", recordingData);
+};
 
-  
+
+
   
   
   
@@ -681,7 +687,10 @@ return (
 
     {/* Jitsiコンテナ */}
     <div className="w-full h-full bg-black">
-      <JitsiMeeting roomName={meetingUrl.split("/").pop()} />
+    <JitsiMeeting
+  roomName={meetingUrl.split("/").pop()}
+  onRecordingStop={handleRecordingStop}
+/>
     </div>
   </div>
 )}
