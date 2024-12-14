@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from "react";
 
-const JitsiMeeting = ({ roomName }) => {
+const JitsiMeeting = ({ roomName, isRecording }) => {
   const jitsiContainerRef = useRef(null);
   const apiRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
 
   useEffect(() => {
     const loadJitsiScript = (callback) => {
@@ -31,49 +33,30 @@ const JitsiMeeting = ({ roomName }) => {
         parentNode: jitsiContainerRef.current,
         width: "100%",
         height: "100%",
-        configOverwrite: {
-          enableLobby: false,
-          startAudioMuted: 1,
-          disableDeepLinking: true,
-          prejoinPageEnabled: false,
-          startWithAudioMuted: true,
-          startWithVideoMuted: true,
-        },
-        interfaceConfigOverwrite: {
-          SHOW_JITSI_WATERMARK: false,
-          SHOW_BRAND_WATERMARK: false,
-          TOOLBAR_BUTTONS: [
-            "microphone",
-            "camera",
-            "desktop",
-            "fullscreen",
-            "hangup",
-            "chat",
-            "raisehand",
-            "participants-pane",
-            "videoquality",
-            "tileview",
-            "select-background",
-          ],
-        },
-        userInfo: {
-          displayName: "ゲストユーザー",
-        },
+        configOverwrite: { prejoinPageEnabled: false },
+        interfaceConfigOverwrite: { SHOW_JITSI_WATERMARK: false },
       };
 
       try {
         const api = new window.JitsiMeetExternalAPI(domain, options);
         apiRef.current = api;
 
-        // フルスクリーンの初期化
-        api.executeCommand("toggleVideo");
-
         api.addEventListener("videoConferenceJoined", () => {
           console.log("会議に参加しました");
+
+          // 録画オプションが有効なら録画開始
+          if (isRecording) {
+            startLocalRecording();
+          }
         });
 
-        api.addEventListener("recordingStatusChanged", (event) => {
-          console.log("録画ステータス: ", event.status);
+        api.addEventListener("videoConferenceLeft", () => {
+          console.log("会議を退出しました");
+
+          // 録画オプションが有効なら録画停止
+          if (isRecording) {
+            stopLocalRecording();
+          }
         });
       } catch (error) {
         console.error("Failed to create JitsiMeetExternalAPI instance", error);
@@ -88,59 +71,74 @@ const JitsiMeeting = ({ roomName }) => {
         apiRef.current = null;
       }
     };
-  }, [roomName]);
+  }, [roomName, isRecording]);
 
-  const startRecording = () => {
-    if (apiRef.current) {
-      apiRef.current.executeCommand("startRecording", {
-        mode: "file", // サーバー設定に依存
-      });
+  const startLocalRecording = async () => {
+    if (!jitsiContainerRef.current) {
+      console.error("Jitsi container not found");
+      return;
     }
-  };
 
-  const stopRecording = () => {
-    if (apiRef.current) {
-      apiRef.current.executeCommand("stopRecording", {
-        mode: "file",
-      });
-    }
-  };
+    try {
+      const iframe = jitsiContainerRef.current.querySelector("iframe");
+      const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+      const videoElement = iframeDocument.querySelector("video");
 
-  const toggleFullScreen = () => {
-    if (jitsiContainerRef.current) {
-      if (!document.fullscreenElement) {
-        jitsiContainerRef.current.requestFullscreen();
-      } else {
-        document.exitFullscreen();
+      if (!videoElement) {
+        console.error("Video element not found in Jitsi iframe");
+        return;
       }
+
+      const stream = videoElement.captureStream();
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        if (chunksRef.current.length > 0) {
+          const blob = new Blob(chunksRef.current, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `recording_${new Date().toISOString()}.webm`;
+          a.click();
+
+          URL.revokeObjectURL(url);
+          chunksRef.current = [];
+          console.log("Recording saved.");
+        }
+      };
+
+      mediaRecorder.start();
+      console.log("録画を開始しました");
+    } catch (error) {
+      console.error("Error starting local recording:", error);
+    }
+  };
+
+  const stopLocalRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+      console.log("録画を停止しました");
     }
   };
 
   return (
-    <div>
-      <div
-        ref={jitsiContainerRef}
-        style={{
-          width: "100%",
-          height: "100vh",
-          backgroundColor: "black",
-          position: "relative",
-        }}
-      ></div>
-      <div
-        style={{
-          marginTop: "20px",
-          textAlign: "center",
-          position: "absolute",
-          bottom: "10px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 1000,
-        }}
-      >
-        
-      </div>
-    </div>
+    <div
+      ref={jitsiContainerRef}
+      style={{
+        width: "100%",
+        height: "100vh",
+        backgroundColor: "black",
+        position: "relative",
+      }}
+    ></div>
   );
 };
 
