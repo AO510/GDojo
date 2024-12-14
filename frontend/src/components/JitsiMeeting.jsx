@@ -1,144 +1,96 @@
 import React, { useEffect, useRef } from "react";
 
-const JitsiMeeting = ({ roomName, isRecording }) => {
-  const jitsiContainerRef = useRef(null);
-  const apiRef = useRef(null);
+const JitsiMeeting = ({ roomName }) => {
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const iframeRef = useRef(null);
 
   useEffect(() => {
-    const loadJitsiScript = (callback) => {
-      if (typeof window.JitsiMeetExternalAPI !== "undefined") {
-        callback();
-        return;
-      }
+    // 会議のURLをiframeに設定
+    const iframe = iframeRef.current;
+    if (iframe) {
+      iframe.src = `https://meet.jit.si/${roomName || `Room_${Math.random().toString(36).substr(2, 9)}`}`;
+    }
 
-      const script = document.createElement("script");
-      script.src = "https://meet.jit.si/external_api.js";
-      script.async = true;
-      script.onload = callback;
-      script.onerror = () => console.error("Failed to load Jitsi script");
-      document.body.appendChild(script);
-    };
-
-    const initJitsi = () => {
-      if (!window.JitsiMeetExternalAPI) {
-        console.error("Jitsi Meet API is not available.");
-        return;
-      }
-
-      const domain = "meet.jit.si";
-      const options = {
-        roomName: roomName || `Room_${Math.random().toString(36).substr(2, 9)}`,
-        parentNode: jitsiContainerRef.current,
-        width: "100%",
-        height: "100%",
-        configOverwrite: { prejoinPageEnabled: false },
-        interfaceConfigOverwrite: { SHOW_JITSI_WATERMARK: false },
-      };
-
+    // 録画を開始
+    const startLocalRecording = async () => {
       try {
-        const api = new window.JitsiMeetExternalAPI(domain, options);
-        apiRef.current = api;
+        console.log("[INFO] 録画を開始します...");
+        const iframeDocument = iframeRef.current?.contentDocument || iframeRef.current?.contentWindow?.document;
+        const videoElement = iframeDocument?.querySelector("video");
 
-        api.addEventListener("videoConferenceJoined", () => {
-          console.log("会議に参加しました");
+        if (!videoElement) {
+          console.error("[ERROR] Jitsi iframe内のvideo要素が見つかりません。");
+          return;
+        }
 
-          // 録画オプションが有効なら録画開始
-          if (isRecording) {
-            startLocalRecording();
+        const stream = videoElement.captureStream();
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            chunksRef.current.push(event.data);
           }
-        });
+        };
 
-        api.addEventListener("videoConferenceLeft", () => {
-          console.log("会議を退出しました");
+        mediaRecorder.onstop = () => {
+          if (chunksRef.current.length > 0) {
+            const blob = new Blob(chunksRef.current, { type: "video/webm" });
+            const url = URL.createObjectURL(blob);
 
-          // 録画オプションが有効なら録画停止
-          if (isRecording) {
-            stopLocalRecording();
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `recording_${new Date().toISOString()}.webm`;
+            a.click();
+
+            URL.revokeObjectURL(url);
+            chunksRef.current = [];
+            console.log("[INFO] 録画データが保存されました。");
           }
-        });
+        };
+
+        mediaRecorder.start();
+        console.log("[INFO] 録画を開始しました。");
       } catch (error) {
-        console.error("Failed to create JitsiMeetExternalAPI instance", error);
+        console.error("[ERROR] 録画の開始中にエラーが発生しました:", error);
       }
     };
 
-    loadJitsiScript(initJitsi);
+    // 録画を停止
+    const stopLocalRecording = () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+        console.log("[INFO] 録画を停止しました。");
+      }
+    };
+
+    // 録画のライフサイクルを制御
+    const handleRecordingLifecycle = async () => {
+      await startLocalRecording();
+
+      return () => {
+        stopLocalRecording();
+      };
+    };
+
+    handleRecordingLifecycle();
 
     return () => {
-      if (apiRef.current) {
-        apiRef.current.dispose();
-        apiRef.current = null;
-      }
+      stopLocalRecording(); // コンポーネントのアンマウント時に録画を停止
     };
-  }, [roomName, isRecording]);
-
-  const startLocalRecording = async () => {
-    if (!jitsiContainerRef.current) {
-      console.error("Jitsi container not found");
-      return;
-    }
-
-    try {
-      const iframe = jitsiContainerRef.current.querySelector("iframe");
-      const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
-      const videoElement = iframeDocument.querySelector("video");
-
-      if (!videoElement) {
-        console.error("Video element not found in Jitsi iframe");
-        return;
-      }
-
-      const stream = videoElement.captureStream();
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        if (chunksRef.current.length > 0) {
-          const blob = new Blob(chunksRef.current, { type: "video/webm" });
-          const url = URL.createObjectURL(blob);
-
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `recording_${new Date().toISOString()}.webm`;
-          a.click();
-
-          URL.revokeObjectURL(url);
-          chunksRef.current = [];
-          console.log("Recording saved.");
-        }
-      };
-
-      mediaRecorder.start();
-      console.log("録画を開始しました");
-    } catch (error) {
-      console.error("Error starting local recording:", error);
-    }
-  };
-
-  const stopLocalRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-      console.log("録画を停止しました");
-    }
-  };
+  }, [roomName]);
 
   return (
-    <div
-      ref={jitsiContainerRef}
-      style={{
-        width: "100%",
-        height: "100vh",
-        backgroundColor: "black",
-        position: "relative",
-      }}
-    ></div>
+    <div style={{ position: "relative", width: "100%", height: "100vh" }}>
+      {/* Jitsi iframe */}
+      <iframe
+        ref={iframeRef}
+        allow="camera; microphone; fullscreen; display-capture"
+        style={{ width: "100%", height: "100%", border: "none" }}
+        title="Jitsi Meeting"
+      ></iframe>
+    </div>
   );
 };
 

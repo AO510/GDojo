@@ -305,6 +305,8 @@ const fetchData = useCallback(async () => {
 // 録画を開始する関数
 const startScreenRecording = async () => {
   try {
+    console.log("[INFO] 録画の準備を開始します...");
+
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: {
         cursor: "always", // マウスカーソルも表示
@@ -312,7 +314,7 @@ const startScreenRecording = async () => {
       audio: true, // 必要に応じて音声もキャプチャ
     });
 
-    console.log("画面録画用ストリームを取得しました:", stream);
+    console.log("[INFO] 録画用のストリームを取得しました:", stream);
 
     const recorder = new MediaRecorder(stream);
     mediaRecorderRef.current = recorder;
@@ -338,31 +340,35 @@ const startScreenRecording = async () => {
         };
 
         setRecordings((prev) => [...prev, recordingData]);
-        console.log("録画が完了し保存されました:", recordingData);
+        console.log("[INFO] 録画が完了しました:", recordingData);
       } else {
-        console.error("録画データがありません。");
+        console.error("[ERROR] 録画データがありません。");
       }
 
+      // ストリームを停止
+      console.log("[INFO] ストリームを停止します...");
       stream.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
     };
 
     recorder.start();
     mediaStreamRef.current = stream;
     setIsRecording(true);
-    console.log("画面録画を開始しました");
+    console.log("[INFO] 録画を開始しました");
   } catch (error) {
-    console.error("画面録画の開始中にエラーが発生しました:", error);
+    console.error("[ERROR] 録画の開始中にエラーが発生しました:", error);
   }
 };
 
-// タイマーに応じて録画を開始/停止
 useEffect(() => {
   if (ready && timer > 0 && !isRecording) {
+    console.log(`[INFO] タイマーが ${timer} で録画を開始します`);
     startScreenRecording();
   }
 
   if (timer === 0 && isRecording) {
-    console.log("タイマーが終了したため、録画を停止します。");
+    console.log("[INFO] タイマー終了のため録画を停止します");
+    alert("録画を停止します");
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
     }
@@ -371,10 +377,12 @@ useEffect(() => {
 
   return () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      console.log("[INFO] コンポーネントのアンマウント時に録画を停止します");
       mediaRecorderRef.current.stop();
     }
 
     if (mediaStreamRef.current) {
+      console.log("[INFO] コンポーネントのアンマウント時にストリームを停止します");
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
     }
   };
@@ -391,7 +399,7 @@ const handleDownload = (recording) => {
 
   setTimeout(() => {
     URL.revokeObjectURL(recording.url);
-    console.log("録画データのURLを解放しました");
+    console.log("録画データのURLを解放しました:", recording.url);
   }, 1000);
 };
 
@@ -400,7 +408,6 @@ const handleSend = (recording) => {
   console.log(`録画 ${recording.date} を送信するためのAPIリクエストを作成します`);
   alert(`録画 ${recording.date} を送信しました`);
 };
-
 
 // タイマー終了時の処理
 useEffect(() => {
