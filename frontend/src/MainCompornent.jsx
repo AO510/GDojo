@@ -368,7 +368,7 @@ useEffect(() => {
 
   if (timer === 0 && isRecording) {
     console.log("[INFO] タイマー終了のため録画を停止します");
-    alert("録画を停止します");
+    //alert("録画を停止します");
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
     }

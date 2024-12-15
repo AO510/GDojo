@@ -1,18 +1,13 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
-const JitsiMeeting = ({ roomName, onRecordingStop }) => {
+const JitsiMeeting = ({ roomName }) => {
   const jitsiContainerRef = useRef(null);
   const apiRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const [isRecording, setIsRecording] = useState(false); // 録画中かどうかを管理
 
   useEffect(() => {
-    // JitsiMeetExternalAPI の初期化を一度だけ行う
-    if (apiRef.current) {
-      console.log("[INFO] JitsiMeetExternalAPI はすでに初期化されています。");
-      return;
-    }
-
     const loadJitsiScript = (callback) => {
       if (typeof window.JitsiMeetExternalAPI !== "undefined") {
         callback();
@@ -47,8 +42,12 @@ const JitsiMeeting = ({ roomName, onRecordingStop }) => {
         const api = new window.JitsiMeetExternalAPI(domain, options);
         apiRef.current = api;
 
-        api.addEventListener("videoConferenceJoined", () => {
-          console.log("[INFO] 会議に参加しました。録画を開始します...");
+        api.addEventListener("videoConferenceJoined", async () => {
+          console.log("[INFO] 会議に参加しました。");
+          if (!isRecording) {
+            console.log("[INFO] 録画を開始します...");
+            await startScreenRecording();
+          }
         });
 
         api.addEventListener("videoConferenceLeft", () => {
@@ -67,13 +66,62 @@ const JitsiMeeting = ({ roomName, onRecordingStop }) => {
         apiRef.current.dispose();
         apiRef.current = null;
       }
-      stopLocalRecording(); // アンマウント時に録画を停止
+      stopLocalRecording();
     };
-  }, [roomName]);
+  }, [roomName, isRecording]);
+
+  const startScreenRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          cursor: "always", // マウスカーソルを含める
+        },
+        audio: true,
+      });
+
+      console.log("[INFO] 画面録画用のストリームを取得しました:", stream);
+
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        if (chunksRef.current.length > 0) {
+          const blob = new Blob(chunksRef.current, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `recording_${new Date().toISOString()}.webm`;
+          a.click();
+
+          URL.revokeObjectURL(url);
+          chunksRef.current = [];
+          console.log("[INFO] 録画データが保存されました");
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true); // 録画中の状態を更新
+      console.log("[INFO] 録画を開始しました");
+    } catch (error) {
+      if (error.name === "NotAllowedError") {
+        alert("[ERROR] 画面録画の権限が拒否されました。再試行してください。");
+      } else {
+        console.error("[ERROR] 録画の開始中にエラーが発生しました:", error);
+      }
+    }
+  };
 
   const stopLocalRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
+      setIsRecording(false); // 録画中の状態を更新
       console.log("[INFO] 録画を停止しました");
     }
   };
