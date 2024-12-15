@@ -5,7 +5,7 @@ const JitsiMeeting = ({ roomName }) => {
   const apiRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
-  const [isRecording, setIsRecording] = useState(false); // 録画中かどうかの状態管理
+  const [isRecording, setIsRecording] = useState(false); // 録画中かどうか
 
   useEffect(() => {
     const loadJitsiScript = (callback) => {
@@ -41,15 +41,11 @@ const JitsiMeeting = ({ roomName }) => {
       const api = new window.JitsiMeetExternalAPI(domain, options);
       apiRef.current = api;
 
-      // 会議参加時に録画を開始
       api.addEventListener("videoConferenceJoined", () => {
         console.log("[INFO] 会議に参加しました。");
-        if (!isRecording) {
-          startScreenRecording();
-        }
+        startScreenRecording(); // 画面録画を1回だけ開始
       });
 
-      // 会議退出時に録画を停止
       api.addEventListener("videoConferenceLeft", () => {
         console.log("[INFO] 会議を退出しました。録画を停止します。");
         stopScreenRecording();
@@ -67,13 +63,13 @@ const JitsiMeeting = ({ roomName }) => {
   }, [roomName]);
 
   const startScreenRecording = async () => {
-    try {
-      if (isRecording) return; // 既に録画中なら何もしない
-      console.log("[INFO] 画面録画を開始します...");
+    if (isRecording) return; // 録画が既に開始されている場合は何もしない
 
+    try {
+      console.log("[INFO] 画面録画を開始します...");
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: "always" },
-        audio: true,
+        audio: false, // 音声を録画しない
       });
 
       const mediaRecorder = new MediaRecorder(stream);
@@ -88,6 +84,7 @@ const JitsiMeeting = ({ roomName }) => {
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "video/webm" });
         const url = URL.createObjectURL(blob);
+
         const a = document.createElement("a");
         a.href = url;
         a.download = `recording_${new Date().toISOString()}.webm`;
@@ -100,9 +97,9 @@ const JitsiMeeting = ({ roomName }) => {
 
       mediaRecorder.start();
       setIsRecording(true);
-      console.log("[INFO] 録画中です。");
+      console.log("[INFO] 録画が開始されました。");
     } catch (error) {
-      console.error("[ERROR] 画面録画の開始に失敗しました:", error);
+      console.error("[ERROR] 画面録画の開始中にエラーが発生しました:", error);
     }
   };
 
