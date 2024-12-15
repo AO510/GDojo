@@ -5,7 +5,8 @@ const JitsiMeeting = ({ roomName }) => {
   const apiRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
-  const [isRecording, setIsRecording] = useState(false); // 録画中かどうか
+  const streamRef = useRef(null); // ストリームを保存
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     const loadJitsiScript = (callback) => {
@@ -43,7 +44,7 @@ const JitsiMeeting = ({ roomName }) => {
 
       api.addEventListener("videoConferenceJoined", () => {
         console.log("[INFO] 会議に参加しました。");
-        startScreenRecording(); // 画面録画を1回だけ開始
+        if (!isRecording) startScreenRecording();
       });
 
       api.addEventListener("videoConferenceLeft", () => {
@@ -69,9 +70,10 @@ const JitsiMeeting = ({ roomName }) => {
       console.log("[INFO] 画面録画を開始します...");
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: "always" },
-        audio: false, // 音声を録画しない
+        audio: false,
       });
 
+      streamRef.current = stream; // ストリームを保存
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
 
@@ -82,17 +84,19 @@ const JitsiMeeting = ({ roomName }) => {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
-        const url = URL.createObjectURL(blob);
+        if (chunksRef.current.length > 0) {
+          const blob = new Blob(chunksRef.current, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
 
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `recording_${new Date().toISOString()}.webm`;
-        a.click();
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `recording_${new Date().toISOString()}.webm`;
+          a.click();
 
-        URL.revokeObjectURL(url);
-        chunksRef.current = [];
-        console.log("[INFO] 録画が保存されました。");
+          URL.revokeObjectURL(url);
+          chunksRef.current = [];
+          console.log("[INFO] 録画が保存されました。");
+        }
       };
 
       mediaRecorder.start();
@@ -109,13 +113,40 @@ const JitsiMeeting = ({ roomName }) => {
       setIsRecording(false);
       console.log("[INFO] 録画を停止しました。");
     }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop()); // ストリームを解放
+      streamRef.current = null;
+      console.log("[INFO] ストリームを解放しました。");
+    }
   };
 
   return (
     <div
       ref={jitsiContainerRef}
-      style={{ width: "100%", height: "100vh", backgroundColor: "black" }}
-    ></div>
+      style={{
+        width: "100%",
+        height: "100vh",
+        backgroundColor: "black",
+        position: "relative",
+      }}
+    >
+      {isRecording && (
+        <div
+          style={{
+            position: "absolute",
+            top: "10px",
+            left: "10px",
+            color: "white",
+            backgroundColor: "red",
+            padding: "5px 10px",
+            borderRadius: "5px",
+          }}
+        >
+          録画中...
+        </div>
+      )}
+    </div>
   );
 };
 

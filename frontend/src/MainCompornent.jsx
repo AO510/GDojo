@@ -308,28 +308,36 @@ const startScreenRecording = async () => {
     console.log("[INFO] 画面共有をリクエスト中...");
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: { cursor: "always" },
-      audio: false, // 必要に応じて音声を有効化
+      audio: false,
     });
 
     streamRef.current = stream; // ストリームを保存
     const mediaRecorder = new MediaRecorder(stream);
     mediaRecorderRef.current = mediaRecorder;
 
+    const chunks = []; // ローカルでチャンクを保持
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
-        chunksRef.current.push(event.data);
+        chunks.push(event.data);
       }
     };
 
     mediaRecorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "video/webm" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `recording_${new Date().toISOString()}.webm`;
-      a.click();
-      URL.revokeObjectURL(url);
-      chunksRef.current = [];
+      if (chunks.length > 0) {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
+
+        // 録画データを `handleRecordingStop` に渡す
+        const recordingData = {
+          url,
+          date: new Date().toISOString(),
+        };
+        handleRecordingStop(recordingData);
+
+        console.log("[INFO] 録画を停止しデータを保存しました");
+      } else {
+        console.log("[WARN] 録画データがありません");
+      }
     };
 
     mediaRecorder.start();
@@ -349,21 +357,21 @@ useEffect(() => {
 
   if (timer === 0 && recordingStarted) {
     console.log("[INFO] タイマー終了のため録画を停止します");
-  
+
     // MediaRecorderが動作中の場合のみ停止処理を実行
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop(); // MediaRecorderの停止
       console.log("[INFO] MediaRecorderを停止しました");
     }
-    // 録画用のストリームを解放
-  if (streamRef.current) {
-    streamRef.current.getTracks().forEach((track) => track.stop()); // ストリームを停止
-    streamRef.current = null; // ストリームをリセット
-    console.log("[INFO] ストリームを解放しました");
 
-  }  
+    // 録画用のストリームを解放
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop()); // ストリームを停止
+      streamRef.current = null; // ストリームをリセット
+      console.log("[INFO] ストリームを解放しました");
+    }
+
     // 録画状態をリセット
-    //setIsRecording(false); // 録画中の状態をリセット
     setRecordingStarted(false); // 録画開始済みフラグをリセット
     console.log("[INFO] 録画状態をリセットしました");
   }
@@ -374,12 +382,28 @@ useEffect(() => {
       mediaRecorderRef.current.stop();
     }
 
-    if (mediaStreamRef.current) {
+    if (streamRef.current) {
       console.log("[INFO] コンポーネントのアンマウント時にストリームを停止します");
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
     }
   };
 }, [ready, timer, isRecording]);
+
+const handleRecordingStop = (recordingData) => {
+  // 新しい録画データを生成
+  const newRecording = {
+    email: "student@ccmailg.meijo-u.ac.jp", // 仮のメールアドレス。動的に取得可能にする場合は適宜変更
+    date: recordingData.date,
+    category: "情報系", // 固定値または動的に取得
+    count: recordings.length + 1, // 現在の録画数に基づいてカウント
+    url: recordingData.url,
+  };
+
+  // 録画リストに新しいデータを追加
+  setRecordings((prev) => [...prev, newRecording]);
+
+  console.log("[INFO] 録画データを追加しました:", newRecording);
+};
 
 // 録画データのダウンロード
 const handleDownload = (recording) => {
@@ -390,10 +414,7 @@ const handleDownload = (recording) => {
   a.click();
   document.body.removeChild(a);
 
-  setTimeout(() => {
-    URL.revokeObjectURL(recording.url);
-    console.log("録画データのURLを解放しました:", recording.url);
-  }, 1000);
+  console.log("録画データをダウンロードしました:", recording.url);
 };
 
 // 録画データの送信（仮実装）
@@ -448,11 +469,7 @@ useEffect(() => {
   requestFullScreen();
 }, []);
 
-// 既存のインポートや状態定義の直後
-const handleRecordingStop = (recordingData) => {
-  setRecordings((prev) => [...prev, recordingData]);
-  console.log("[INFO] 録画データを受信しました:", recordingData);
-};
+
 
 
 
@@ -1076,57 +1093,64 @@ return (
       )}
 
 {showRecordingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold font-noto-sans">録画データ</h2>
-              <button
-                onClick={() => setShowRecordingModal(false)}
-                className="text-gray-500 hover:text-gray-700 text-xl"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="space-y-4 overflow-y-auto max-h-[60vh]">
-              {recordings.length === 0 ? (
-                <div className="text-center py-8">
-                  <i className="fas fa-video-slash text-gray-400 text-4xl mb-4"></i>
-                  <p className="text-gray-500 font-noto-sans">
-                    録画データはありません
-                  </p>
-                  <p className="text-gray-400 text-sm mt-2">
-                    会議開始時に録画が有効になります。
-                  </p>
-                </div>
-              ) : (
-                recordings.map((recording, index) => (
-                  <div key={index} className="p-4 border rounded-md">
-                    <p className="font-bold">
-                      {recording.email}_{recording.date}_{recording.category}_
-                      {recording.count}回目
-                    </p>
-                    <video controls src={recording.url} className="w-full rounded-md" />
-                    <div className="flex justify-end space-x-2 mt-2">
-                      <button
-                        onClick={() => handleDownload(recording)}
-                        className="text-blue-500 hover:text-blue-700"
-                      >
-                        ダウンロード
-                      </button>
-                      <button
-                        onClick={() => handleSend(recording)}
-                        className="text-green-500 hover:text-green-700"
-                      >
-                        送信
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white p-8 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold font-noto-sans">録画データ</h2>
+        <button
+          onClick={() => setShowRecordingModal(false)}
+          className="text-gray-500 hover:text-gray-700 text-xl"
+        >
+          <i className="fas fa-times"></i>
+        </button>
+      </div>
+      <div className="space-y-4 overflow-y-auto max-h-[60vh]">
+        {recordings.length === 0 ? (
+          <div className="text-center py-8">
+            <i className="fas fa-video-slash text-gray-400 text-4xl mb-4"></i>
+            <p className="text-gray-500 font-noto-sans">録画データはありません</p>
+            <p className="text-gray-400 text-sm mt-2">
+              マッチング時に録画設定をオンにすると、ここに録画データが表示されます
+            </p>
           </div>
-        </div>
-      )}
+        ) : (
+          recordings.map((recording, index) => (
+            <div key={index} className="p-4 border rounded-md">
+              <p className="font-bold">
+                {recording.email}_{recording.date}_{recording.category}_
+                {recording.count}回目
+              </p>
+              <div className="flex flex-col space-y-2 mt-2">
+                <video
+                  controls
+                  src={recording.url}
+                  className="w-full rounded-md"
+                />
+                <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={() => handleDownload(recording)}
+                    className="text-[#722F37] hover:text-[#5a252c] px-4 py-2 rounded-md border border-[#722F37] flex items-center"
+                  >
+                    <i className="fas fa-download mr-2"></i>
+                    ダウンロード
+                  </button>
+                  <button
+                    onClick={() => handleSend(recording)}
+                    className="bg-[#722F37] text-white px-4 py-2 rounded-md hover:bg-[#5a252c] flex items-center"
+                  >
+                    <i className="fas fa-paper-plane mr-2"></i>
+                    送信
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
     </main>
     <style jsx>{`
   .container {
