@@ -361,7 +361,7 @@ const startScreenRecording = async () => {
 };
 
 useEffect(() => {
-  if (ready && timer > 0 && !isRecording) {
+  if (ready && timer > 0 && isRecording) {
     console.log(`[INFO] タイマーが ${timer} で録画を開始します`);
     startScreenRecording();
   }
