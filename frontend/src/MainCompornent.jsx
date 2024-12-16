@@ -305,16 +305,12 @@ const fetchData = useCallback(async () => {
 // 録画を開始する関数
 const startScreenRecording = async () => {
   try {
-    alert(
-      "録画を開始します。\n画面共有時に「タブ全体」または「ウィンドウ全体」を選択し、音声も含める設定にしてください。"
-    );
-
     console.log("[INFO] 画面録画をリクエスト中...");
 
-    // 画面共有の映像と音声
+    // 画面共有の映像とシステム音声
     const displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: { cursor: "always" },
-      audio: true, // 画面共有音声を有効化
+      audio: true, // システム音声を有効化
     });
 
     // マイク音声
@@ -381,7 +377,6 @@ const startScreenRecording = async () => {
     console.error("[ERROR] 録画の開始中にエラーが発生しました:", error);
   }
 };
-
 
 
 const stopScreenRecording = () => {
