@@ -307,7 +307,7 @@ const startScreenRecording = async () => {
   try {
     console.log("[INFO] 画面録画をリクエスト中...");
 
-    // 画面共有の映像とシステム音声
+    // 画面共有の映像と音声
     const displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: { cursor: "always" },
       audio: true, // システム音声を有効化
@@ -318,11 +318,11 @@ const startScreenRecording = async () => {
       audio: true, // マイク音声を取得
     });
 
-    // Web Audio API を使用して音声をミキシング
+    // Web Audio API を使用して音声をミックス
     const audioContext = new AudioContext();
     const destination = audioContext.createMediaStreamDestination();
 
-    // システム音声（画面共有）を追加
+    // 画面共有の音声を追加
     const displayAudio = audioContext.createMediaStreamSource(displayStream);
     displayAudio.connect(destination);
 
@@ -330,51 +330,42 @@ const startScreenRecording = async () => {
     const micAudio = audioContext.createMediaStreamSource(micStream);
     micAudio.connect(destination);
 
-    // Jitsi Meetの音声を追加（オプション: 必要に応じて処理）
-    const iframe = document.querySelector("iframe");
-    if (iframe) {
-      const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
-      const jitsiAudioElement = iframeDocument.querySelector("audio");
-      if (jitsiAudioElement) {
-        const jitsiAudioStream = jitsiAudioElement.captureStream();
-        const jitsiAudio = audioContext.createMediaStreamSource(jitsiAudioStream);
-        jitsiAudio.connect(destination);
-      } else {
-        console.warn("[WARN] Jitsi Meetの音声が見つかりませんでした。");
-      }
-    }
-
-    // 映像トラックを保持しつつ、音声トラックをミキシング
+    // ミックスされた音声と画面映像を統合
     const combinedStream = new MediaStream([
       ...displayStream.getVideoTracks(), // 映像トラック
-      ...destination.stream.getAudioTracks(), // ミキシングされた音声トラック
+      ...destination.stream.getAudioTracks(), // ミックスされた音声トラック
     ]);
 
     streamRef.current = combinedStream; // 統合されたストリームを保存
     const mediaRecorder = new MediaRecorder(combinedStream);
     mediaRecorderRef.current = mediaRecorder;
 
-    const chunks = [];
+    const chunks = []; // 録画データを保持
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         chunks.push(event.data);
+        console.log("[INFO] 録画データを収集中...");
       }
     };
 
     mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: "video/webm" });
-      const url = URL.createObjectURL(blob);
+      if (chunks.length > 0) {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
 
-      const recordingData = {
-        url,
-        date: new Date().toISOString(),
-        email: "user@example.com",
-        category: "General",
-        count: recordings.length + 1,
-      };
+        const recordingData = {
+          url,
+          date: new Date().toISOString(),
+          email: "user@example.com", // 仮のメールアドレス
+          category: "General",
+          count: recordings.length + 1,
+        };
 
-      setRecordings((prev) => [...prev, recordingData]);
-      console.log("[INFO] 録画データを保存しました:", recordingData);
+        setRecordings((prev) => [...prev, recordingData]);
+        console.log("[INFO] 録画データを保存しました:", recordingData);
+      } else {
+        console.log("[WARN] 録画データがありません");
+      }
 
       // ストリームを解放
       if (streamRef.current) {
@@ -382,8 +373,12 @@ const startScreenRecording = async () => {
         streamRef.current = null;
         console.log("[INFO] ストリームを解放しました");
       }
+
+      // オーディオコンテキストを解放
+      audioContext.close();
     };
 
+    // 録画を開始
     mediaRecorder.start();
     setIsRecording(true);
     console.log("[INFO] 録画を開始しました");
@@ -398,8 +393,6 @@ const startScreenRecording = async () => {
   }
 };
 
-
-
 const stopScreenRecording = () => {
   if (mediaRecorderRef.current?.state === "recording") {
     console.log("[INFO] MediaRecorderを停止します...");
@@ -413,6 +406,7 @@ const stopScreenRecording = () => {
     streamRef.current = null;
   }
 };
+
 
 // 録画管理のエフェクト
 useEffect(() => {
