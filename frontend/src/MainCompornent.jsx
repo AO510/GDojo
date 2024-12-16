@@ -410,6 +410,8 @@ const startScreenRecording = async () => {
 };
 
 
+
+
 const stopScreenRecording = () => {
   if (mediaRecorderRef.current?.state === "recording") {
     console.log("[INFO] MediaRecorderを停止します...");
