@@ -38,17 +38,31 @@ const JitsiMeeting = ({ roomName, isRecording, onStartRecording, onStopRecording
       const api = new window.JitsiMeetExternalAPI(domain, options);
       apiRef.current = api;
 
-      api.addEventListener("videoConferenceJoined", () => {
+      api.addEventListener("videoConferenceJoined", async () => {
         console.log("[INFO] 会議に参加しました。");
-        if (onStartRecording) {
-          onStartRecording();
+
+        // 録画開始アラートと画面選択
+        const userConfirmed = window.confirm(
+          "録画を開始します。録画したい画面やウィンドウを選択してください。"
+        );
+
+        if (userConfirmed && onStartRecording) {
+          try {
+            console.log("[INFO] ユーザーが録画を承認しました。画面選択を要求中...");
+            await onStartRecording(); // 録画を開始
+            console.log("[INFO] 録画が正常に開始されました。");
+          } catch (error) {
+            console.error("[ERROR] 録画の開始中にエラーが発生しました:", error);
+          }
+        } else {
+          console.log("[INFO] ユーザーが録画をキャンセルしました。");
         }
       });
 
       api.addEventListener("videoConferenceLeft", () => {
         console.log("[INFO] 会議を退出しました。録画を停止します。");
         if (onStopRecording) {
-          onStopRecording();
+          onStopRecording(); // 録画を停止
         }
       });
     };
