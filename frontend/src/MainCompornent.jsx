@@ -371,31 +371,32 @@ const stopScreenRecording = () => {
 };
 
 useEffect(() => {
-  if (!recordingStarted) {
+  if (ready && !recordingStarted) {
     console.log("[INFO] 録画を開始します");
     startScreenRecording(); // 録画を開始
-    setRecordingStarted(true); // 録画開始済みをセット
+    setRecordingStarted(true);
   }
 
   if (timer === 0 && recordingStarted) {
     console.log("[INFO] タイマー終了のため録画を停止します");
     stopScreenRecording(); // 録画を停止
-    setRecordingStarted(false); // 録画状態をリセット
+    setRecordingStarted(false);
   }
 
-  return () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+  // クリーンアップ処理
+  /*return () => {
+    if (recordingStarted && mediaRecorderRef.current?.state === "recording") {
       console.log("[INFO] コンポーネントのアンマウント時に録画を停止します");
-      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stop(); // 録画停止
     }
 
     if (streamRef.current) {
       console.log("[INFO] コンポーネントのアンマウント時にストリームを停止します");
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop()); // ストリーム解放
       streamRef.current = null;
     }
-  };
-}, [timer, recordingStarted]); // recordingStarted を監視に追加
+  };*/
+}, [ready, timer, recordingStarted]);
 
 const handleRecordingStop = (recordingData) => {
   const newRecording = {
