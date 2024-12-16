@@ -305,20 +305,27 @@ const fetchData = useCallback(async () => {
 // 録画を開始する関数
 const startScreenRecording = async () => {
   try {
-    if (streamRef.current) {
-      console.log("[INFO] 既存のストリームが存在します。録画をリセットします。");
-      stopScreenRecording();
-    }
-
     console.log("[INFO] 画面録画をリクエスト中...");
-    const stream = await navigator.mediaDevices.getDisplayMedia({
+
+    // 画面共有の映像と音声
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: { cursor: "always" },
-      audio: true, // 音声も取得
+      audio: true, // 画面共有音声を有効化
     });
 
-    // ストリームを固定する
-    streamRef.current = stream.clone(); // ストリームを複製して管理
-    const mediaRecorder = new MediaRecorder(streamRef.current);
+    // マイク音声
+    const audioStream = await navigator.mediaDevices.getUserMedia({
+      audio: true, // マイク音声を取得
+    });
+
+    // 映像・音声ストリームを統合
+    const combinedStream = new MediaStream([
+      ...displayStream.getTracks(), 
+      ...audioStream.getAudioTracks(),
+    ]);
+
+    streamRef.current = combinedStream; // 統合されたストリームを保存
+    const mediaRecorder = new MediaRecorder(combinedStream);
     mediaRecorderRef.current = mediaRecorder;
 
     const chunks = []; // 録画データを保持
@@ -361,9 +368,9 @@ const startScreenRecording = async () => {
     setIsRecording(true);
     console.log("[INFO] 録画を開始しました");
 
-    // 他のユーザーが画面共有を変更してもストリームが維持される
-    stream.getVideoTracks()[0].addEventListener("ended", () => {
-      console.log("[INFO] ユーザーの画面共有が終了しました。録画を停止します。");
+    // 画面共有の停止時に録画を終了
+    displayStream.getVideoTracks()[0].addEventListener("ended", () => {
+      console.log("[INFO] 画面共有が終了しました。録画を停止します。");
       stopScreenRecording();
     });
   } catch (error) {
