@@ -131,7 +131,7 @@ const generateRandomTopicWithTimer = (category) => {
   const topics = {
     general: [{ topic: "働き方改革について", timer: 300 }],
     情報系: [{ topic: "AIの課題", timer: 30 }],
-    メーカー系: [{ topic: "環境に優しい製品設計", timer: 40 }],
+    メーカー系: [{ topic: "環境に優しい製品設計", timer: 180 }],
     金融系: [{ topic: "キャッシュレス社会", timer: 300 }],
   };
   const topicList = topics[category] || topics["general"];
