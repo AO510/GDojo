@@ -371,7 +371,7 @@ const stopScreenRecording = () => {
 };
 
 useEffect(() => {
-  if (ready && !recordingStarted) {
+  if (!recordingStarted) {
     console.log("[INFO] 録画を開始します");
     startScreenRecording(); // 録画を開始
     setRecordingStarted(true); // 録画開始済みをセット
@@ -395,7 +395,7 @@ useEffect(() => {
       streamRef.current = null;
     }
   };
-}, [ready, timer, recordingStarted]); // recordingStarted を監視に追加
+}, [timer, recordingStarted]); // recordingStarted を監視に追加
 
 const handleRecordingStop = (recordingData) => {
   const newRecording = {
