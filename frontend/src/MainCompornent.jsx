@@ -356,6 +356,20 @@ const startScreenRecording = async () => {
   }
 };
 
+const stopScreenRecording = () => {
+  if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+    console.log("[INFO] MediaRecorderを停止します...");
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
+  }
+
+  if (streamRef.current) {
+    console.log("[INFO] ストリームを停止します...");
+    streamRef.current.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }
+};
+
 useEffect(() => {
   if (ready && !recordingStarted) {
     console.log("[INFO] 録画を開始します");
@@ -398,7 +412,6 @@ const handleRecordingStop = (recordingData) => {
   console.log("[INFO] 録画データを追加しました:", newRecording);
 };
 
-
 // 録画データのダウンロード
 const handleDownload = (recording) => {
   const a = document.createElement("a");
@@ -408,13 +421,13 @@ const handleDownload = (recording) => {
   a.click();
   document.body.removeChild(a);
 
-  console.log("録画データをダウンロードしました:", recording.url);
+  console.log("[INFO] 録画データをダウンロードしました:", recording.url);
 };
 
 // 録画データの送信（仮実装）
 const handleSend = (recording) => {
-  console.log(`録画 ${recording.date} を送信するためのAPIリクエストを作成します`);
-  alert(`録画 ${recording.date} を送信しました`);
+  console.log(`[INFO] 録画 ${recording.date} を送信するためのAPIリクエストを作成します`);
+  alert(`[INFO] 録画 ${recording.date} を送信しました`);
 };
 
 // タイマー終了時の処理
@@ -453,15 +466,16 @@ useEffect(() => {
     if (videoContainerRef.current) {
       try {
         await videoContainerRef.current.requestFullscreen();
-        console.log("初期状態でフルスクリーンにしました");
+        console.log("[INFO] 初期状態でフルスクリーンにしました");
       } catch (err) {
-        console.error("初期状態でフルスクリーンに失敗しました:", err);
+        console.error("[ERROR] 初期状態でフルスクリーンに失敗しました:", err);
       }
     }
   };
 
   requestFullScreen();
 }, []);
+
 
 
 
