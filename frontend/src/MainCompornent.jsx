@@ -305,6 +305,10 @@ const fetchData = useCallback(async () => {
 // 録画を開始する関数
 const startScreenRecording = async () => {
   try {
+    alert(
+      "録画を開始します。\n画面共有時に「タブ全体」または「ウィンドウ全体」を選択し、音声も含める設定にしてください。"
+    );
+
     console.log("[INFO] 画面録画をリクエスト中...");
 
     // 画面共有の映像と音声
@@ -318,28 +322,10 @@ const startScreenRecording = async () => {
       audio: true, // マイク音声を取得
     });
 
-    // Jitsi iframeの音声
-    const iframe = document.querySelector("iframe"); // Jitsi Meet iframeを取得
-    if (!iframe) {
-      console.error("[ERROR] Jitsi iframeが見つかりません。");
-      return;
-    }
-
-    const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-    const jitsiAudioElement = iframeDocument.querySelector("audio"); // Jitsiの音声要素を取得
-
-    if (!jitsiAudioElement) {
-      console.error("[ERROR] Jitsi iframe内の音声要素が見つかりません。");
-      return;
-    }
-
-    const jitsiAudioStream = jitsiAudioElement.captureStream(); // Jitsi音声をストリームとしてキャプチャ
-
     // 映像・音声ストリームを統合
     const combinedStream = new MediaStream([
       ...displayStream.getTracks(), // 画面共有の映像・音声
       ...audioStream.getAudioTracks(), // マイク音声
-      ...jitsiAudioStream.getAudioTracks(), // Jitsi音声
     ]);
 
     streamRef.current = combinedStream; // 統合されたストリームを保存
@@ -395,6 +381,7 @@ const startScreenRecording = async () => {
     console.error("[ERROR] 録画の開始中にエラーが発生しました:", error);
   }
 };
+
 
 
 const stopScreenRecording = () => {
