@@ -334,12 +334,20 @@ const startScreenRecording = async () => {
         };
         handleRecordingStop(recordingData);
 
-        console.log("[INFO] 録画を停止しデータを保存しました");
+        console.log("[INFO] 録画を停止しデータを保存しました:", recordingData);
       } else {
         console.log("[WARN] 録画データがありません");
       }
+
+      // ストリームの解放
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        console.log("[INFO] ストリームを解放しました");
+      }
     };
 
+    // 録画を開始
     mediaRecorder.start();
     setIsRecording(true);
     console.log("[INFO] 録画を開始しました");
@@ -359,25 +367,19 @@ useEffect(() => {
     console.log("[INFO] タイマー終了のため録画を停止します");
 
     // MediaRecorderが動作中の場合のみ停止処理を実行
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       mediaRecorderRef.current.stop(); // MediaRecorderの停止
       console.log("[INFO] MediaRecorderを停止しました");
     }
 
-    // 録画用のストリームを解放
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop()); // ストリームを停止
-      streamRef.current = null; // ストリームをリセット
-      console.log("[INFO] ストリームを解放しました");
-    }
-
     // 録画状態をリセット
     setRecordingStarted(false); // 録画開始済みフラグをリセット
+    setIsRecording(false); // 録画フラグをリセット
     console.log("[INFO] 録画状態をリセットしました");
   }
 
   return () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       console.log("[INFO] コンポーネントのアンマウント時に録画を停止します");
       mediaRecorderRef.current.stop();
     }
@@ -385,12 +387,12 @@ useEffect(() => {
     if (streamRef.current) {
       console.log("[INFO] コンポーネントのアンマウント時にストリームを停止します");
       streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
   };
 }, [ready, timer, isRecording]);
 
 const handleRecordingStop = (recordingData) => {
-  // 新しい録画データを生成
   const newRecording = {
     email: "student@ccmailg.meijo-u.ac.jp", // 仮のメールアドレス。動的に取得可能にする場合は適宜変更
     date: recordingData.date,
@@ -404,6 +406,7 @@ const handleRecordingStop = (recordingData) => {
 
   console.log("[INFO] 録画データを追加しました:", newRecording);
 };
+
 
 // 録画データのダウンロード
 const handleDownload = (recording) => {
