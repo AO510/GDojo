@@ -305,30 +305,45 @@ const fetchData = useCallback(async () => {
 // 録画を開始する関数
 const startScreenRecording = async () => {
   try {
-    console.log("[INFO] 画面録画をリクエスト中...");
+    console.log("[INFO] 画面録画と会議音声をリクエスト中...");
 
-    // 画面共有の映像と音声
+    // 画面録画ストリームを取得
     const displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: { cursor: "always" },
-      audio: true, // 画面共有音声を有効化
+      audio: true, // 画面共有の音声も取得
     });
 
-    // マイク音声
-    const audioStream = await navigator.mediaDevices.getUserMedia({
-      audio: true, // マイク音声を取得
-    });
+    // Jitsi 会議の音声ストリームを取得
+    const audioContext = new AudioContext();
+    const destination = audioContext.createMediaStreamDestination();
+    const tracks = [];
 
-    // 映像・音声ストリームを統合
-    const combinedStream = new MediaStream([
-      ...displayStream.getTracks(), 
-      ...audioStream.getAudioTracks(),
+    // Jitsi API を使って会議音声を取得
+    if (apiRef.current) {
+      const remoteAudioTracks = apiRef.current.getParticipants()
+        .flatMap((participant) =>
+          apiRef.current.getParticipantTracks(participant.id, "audio")
+        )
+        .filter((track) => track && track.stream);
+
+      remoteAudioTracks.forEach((remoteAudioTrack) => {
+        const source = audioContext.createMediaStreamSource(remoteAudioTrack.stream);
+        source.connect(destination);
+      });
+    }
+
+    // 映像ストリームと会議音声ストリームをマージ
+    const mergedStream = new MediaStream([
+      ...displayStream.getVideoTracks(),
+      ...displayStream.getAudioTracks(),
+      ...destination.stream.getAudioTracks(),
     ]);
 
-    streamRef.current = combinedStream; // 統合されたストリームを保存
-    const mediaRecorder = new MediaRecorder(combinedStream);
+    // 録画設定
+    const mediaRecorder = new MediaRecorder(mergedStream);
     mediaRecorderRef.current = mediaRecorder;
 
-    const chunks = []; // 録画データを保持
+    const chunks = [];
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         chunks.push(event.data);
@@ -355,28 +370,19 @@ const startScreenRecording = async () => {
         console.log("[WARN] 録画データがありません");
       }
 
-      // ストリームを解放
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        console.log("[INFO] ストリームを解放しました");
-      }
+      // ストリームの解放
+      displayStream.getTracks().forEach((track) => track.stop());
     };
 
-    // 録画を開始
+    // 録画開始
     mediaRecorder.start();
     setIsRecording(true);
     console.log("[INFO] 録画を開始しました");
-
-    // 画面共有の停止時に録画を終了
-    displayStream.getVideoTracks()[0].addEventListener("ended", () => {
-      console.log("[INFO] 画面共有が終了しました。録画を停止します。");
-      stopScreenRecording();
-    });
   } catch (error) {
     console.error("[ERROR] 録画の開始中にエラーが発生しました:", error);
   }
 };
+
 
 const stopScreenRecording = () => {
   if (mediaRecorderRef.current?.state === "recording") {
