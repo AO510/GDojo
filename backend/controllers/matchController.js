@@ -130,9 +130,9 @@ router.post("/getRoomDetails", (req, res) => {
 const generateRandomTopicWithTimer = (category) => {
   const topics = {
     general: [{ topic: "働き方改革について", timer: 300 }],
-    情報系: [{ topic: "AIの課題", timer: 20 }],
-    メーカー系: [{ topic: "環境に優しい製品設計", timer: 300 }],
-    金融系: [{ topic: "キャッシュレス社会", timer: 300 }],
+    情報系: [{ topic: "AIの課題", timer: 30 }],
+    メーカー系: [{ topic: "環境に優しい製品設計", timer: 40 }],
+    金融系: [{ topic: "キャッシュレス社会", timer: 40 }],
   };
   const topicList = topics[category] || topics["general"];
   const selectedTopic = topicList[Math.floor(Math.random() * topicList.length)];
