@@ -307,7 +307,7 @@ const startScreenRecording = async () => {
   try {
     console.log("[INFO] 画面録画をリクエスト中...");
 
-    // 画面共有の映像と音声
+    // 画面共有の映像とシステム音声
     const displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: { cursor: "always" },
       audio: true, // システム音声を有効化
@@ -318,19 +318,35 @@ const startScreenRecording = async () => {
       audio: true, // マイク音声を取得
     });
 
+    // 画面共有ストリームに音声トラックが含まれているかチェック
+    if (!displayStream.getAudioTracks().length) {
+      console.warn("[WARN] 画面共有に音声トラックが含まれていません。システム音声が録音されない可能性があります。");
+      alert("画面共有に音声トラックが含まれていません。システム音声を録音するには、画面共有時に音声を含むオプションを有効にしてください。");
+    }
+
+    // マイク音声が存在するか確認
+    if (!micStream.getAudioTracks().length) {
+      console.warn("[WARN] マイク音声が取得できませんでした。");
+      alert("マイク音声が取得できませんでした。マイクが正しく接続されているか確認してください。");
+    }
+
     // Web Audio API を使用して音声をミックス
     const audioContext = new AudioContext();
     const destination = audioContext.createMediaStreamDestination();
 
-    // 画面共有の音声を追加
-    const displayAudio = audioContext.createMediaStreamSource(displayStream);
-    displayAudio.connect(destination);
+    // 画面共有音声を追加（存在する場合のみ）
+    if (displayStream.getAudioTracks().length) {
+      const displayAudio = audioContext.createMediaStreamSource(displayStream);
+      displayAudio.connect(destination);
+    }
 
-    // マイク音声を追加
-    const micAudio = audioContext.createMediaStreamSource(micStream);
-    micAudio.connect(destination);
+    // マイク音声を追加（存在する場合のみ）
+    if (micStream.getAudioTracks().length) {
+      const micAudio = audioContext.createMediaStreamSource(micStream);
+      micAudio.connect(destination);
+    }
 
-    // ミックスされた音声と画面映像を統合
+    // 映像トラックとミックスされた音声トラックを統合
     const combinedStream = new MediaStream([
       ...displayStream.getVideoTracks(), // 映像トラック
       ...destination.stream.getAudioTracks(), // ミックスされた音声トラック
@@ -392,6 +408,7 @@ const startScreenRecording = async () => {
     console.error("[ERROR] 録画の開始中にエラーが発生しました:", error);
   }
 };
+
 
 const stopScreenRecording = () => {
   if (mediaRecorderRef.current?.state === "recording") {
