@@ -357,25 +357,16 @@ const startScreenRecording = async () => {
 };
 
 useEffect(() => {
-  if (ready && timer > 0 && isRecording && !recordingStarted) {
-    console.log(`[INFO] タイマーが ${timer} で録画を開始します`);
-    startScreenRecording();
-    setRecordingStarted(true); // 録画開始済み
+  if (ready && !recordingStarted) {
+    console.log("[INFO] 録画を開始します");
+    startScreenRecording(); // 録画を開始
+    setRecordingStarted(true);
   }
 
   if (timer === 0 && recordingStarted) {
     console.log("[INFO] タイマー終了のため録画を停止します");
-
-    // MediaRecorderが動作中の場合のみ停止処理を実行
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      mediaRecorderRef.current.stop(); // MediaRecorderの停止
-      console.log("[INFO] MediaRecorderを停止しました");
-    }
-
-    // 録画状態をリセット
-    setRecordingStarted(false); // 録画開始済みフラグをリセット
-    setIsRecording(false); // 録画フラグをリセット
-    console.log("[INFO] 録画状態をリセットしました");
+    stopScreenRecording(); // 録画を停止
+    setRecordingStarted(false);
   }
 
   return () => {
@@ -390,7 +381,7 @@ useEffect(() => {
       streamRef.current = null;
     }
   };
-}, [ready, timer, isRecording]);
+}, [ready, timer]);
 
 const handleRecordingStop = (recordingData) => {
   const newRecording = {
