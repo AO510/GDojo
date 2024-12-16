@@ -304,18 +304,21 @@ const fetchData = useCallback(async () => {
  // 録画の開始と停止
 // 録画を開始する関数
 const startScreenRecording = async () => {
+  if (isRecording) return;
+
+  alert("録画を開始します。録画したい画面やウィンドウを選択してください。");
+
   try {
-    console.log("[INFO] 画面共有をリクエスト中...");
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: { cursor: "always" },
       audio: false,
     });
 
-    streamRef.current = stream; // ストリームを保存
+    streamRef.current = stream;
     const mediaRecorder = new MediaRecorder(stream);
     mediaRecorderRef.current = mediaRecorder;
+    const chunks = [];
 
-    const chunks = []; // ローカルでチャンクを保持
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         chunks.push(event.data);
@@ -327,47 +330,43 @@ const startScreenRecording = async () => {
         const blob = new Blob(chunks, { type: "video/webm" });
         const url = URL.createObjectURL(blob);
 
-        // 録画データを `handleRecordingStop` に渡す
-        const recordingData = {
-          url,
-          date: new Date().toISOString(),
-        };
-        handleRecordingStop(recordingData);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `recording_${new Date().toISOString()}.webm`;
+        a.click();
 
-        console.log("[INFO] 録画を停止しデータを保存しました:", recordingData);
-      } else {
-        console.log("[WARN] 録画データがありません");
-      }
-
-      // ストリームの解放
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        console.log("[INFO] ストリームを解放しました");
+        console.log("[INFO] 録画データを保存しました。");
       }
     };
 
-    // 録画を開始
     mediaRecorder.start();
     setIsRecording(true);
-    console.log("[INFO] 録画を開始しました");
+    setRecordingStarted(true);
+
+    stream.getVideoTracks()[0].addEventListener("ended", () => {
+      console.log("[INFO] 画面共有が停止されました。録画を停止します。");
+      stopScreenRecording();
+    });
+
+    console.log("[INFO] 録画を開始しました。");
   } catch (error) {
     console.error("[ERROR] 録画の開始中にエラーが発生しました:", error);
   }
 };
 
 const stopScreenRecording = () => {
-  if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-    console.log("[INFO] MediaRecorderを停止します...");
+  if (mediaRecorderRef.current && isRecording) {
     mediaRecorderRef.current.stop();
-    setIsRecording(false);
   }
 
   if (streamRef.current) {
-    console.log("[INFO] ストリームを停止します...");
     streamRef.current.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
   }
+
+  setIsRecording(false);
+  setRecordingStarted(false);
+  console.log("[INFO] 録画を停止しました。");
 };
 
 useEffect(() => {
