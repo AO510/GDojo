@@ -3,10 +3,10 @@ import React, { useState, useEffect, useCallback, useRef} from "react";
 import JitsiMeeting from './components/JitsiMeeting';
 //import { useNavigate } from "react-router-dom";
 
-import { Chart, registerables } from 'chart.js';
+import "./chartist.css"; // src/chartist.css をインポート
+import "./ChartistRadar.css"; // カスタムCSSを適用
 
-// 必須: Chart.js を初期化
-Chart.register(...registerables);
+
 import {
   useUpload,
   useHandleStreamResponse,
@@ -37,13 +37,14 @@ function MainComponent() {
   const videoContainerRef = useRef(null); // フルスクリーン対象の参照
   const [recordingStarted, setRecordingStarted] = useState(false); // 録画開始状態を管理
   const streamRef = useRef(null); // useRefでstreamRefを初期化
+  const radius = 150; // 半径を変更 
   
   const [roles, setRoles] = useState({
     司会者: 2,
-    タイムキーパー: 5,
-    アイディア提案者: 4,
-    調整役: 1,
-    記録係: 1,
+    タイムキーパー: 4,
+    アイディア提案者: 5,
+    調整役: 4,
+    記録係: 3,
   });
 
   const roleImages = {
@@ -542,143 +543,85 @@ useEffect(() => {
 
 
 
-useEffect(() => {
-  const canvas = document.getElementById("roleChart");
-  if (!canvas) return;
 
-  const ctx = canvas.getContext("2d");
-
-  if (chartRef.current) {
-    chartRef.current.destroy(); // 古いチャートを破棄
-  }
-
-  chartRef.current = new Chart(ctx, {
-    type: "radar",
-    data: {
-      labels: [
-        "司会者",
-        "タイムキーパー",
-        "アイディア提案者",
-        "調整役",
-        "記録係",
-      ],
-      datasets: [
-        {
-          data: [
-            roles.司会者,
-            roles.タイムキーパー,
-            roles.アイディア提案者,
-            roles.調整役,
-            roles.記録係,
-          ],
-          backgroundColor: "rgba(114, 47, 55, 0.2)",
-          borderColor: "#4a1f24",
-          borderWidth: 5,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        r: {
-          pointLabels: {
-            color: "#000000",
-            font: {
-              size: 18,
-              weight: "bold",
-            },
-          },
-          ticks: {
-            color: "#000000",
-            font: {
-              size: 14,
-              weight: "bold",
-            },
-            backdropColor: "transparent",
-          },
-          grid: {
-            color: "#444444",
-          },
-          angleLines: {
-            color: "#444444",
-            lineWidth: 2,
-          },
-        },
-      },
-      plugins: {
-        legend: {
-          display: false,
-        },
-      },
-    },
-  });
-}, [roles]); // 依存配列を roles に設定
-
-
-
-
-
-
-const handleStreamResponse = useHandleStreamResponse({
-  onChunk: setStreamingMessage,
-  onFinish: (message) => {
-    setMessages((prev) => [...prev, { role: "assistant", content: message }]);
-    setStreamingMessage("");
-  },
-});
-const getHighestRole = () => {
-  return Object.entries(roles).reduce((a, b) => (a[1] > b[1] ? a : b))[0];
-};
-  
-useEffect(() => {
-  const canvas = document.getElementById("roleChart");
-  if (!canvas) return;
-
-  const ctx = canvas.getContext("2d");
-  const data = {
-    labels: ["司会者", "タイムキーパー", "アイディア提案者", "調整役", "記録係"],
-    datasets: [
-      {
-        data: [
-          roles.司会者,
-          roles.タイムキーパー,
-          roles.アイディア提案者,
-          roles.調整役,
-          roles.記録係,
-        ],
-        backgroundColor: "rgba(114, 47, 55, 0.2)",
-        borderColor: "#722F37",
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  // チャート生成
-  if (chartRef.current) {
-    chartRef.current.destroy();
-  }
-  chartRef.current = new Chart(ctx, {
-    type: "radar",
-    data: data,
-    options: {
-      scales: {
-        r: {
-          beginAtZero: true,
-          max: 5,
-          ticks: { stepSize: 1 },
-        },
-      },
-      plugins: { legend: { display: false } },
-    },
-  });
-}, [roles]);
-
-  // 最も高い役職に一致する画像のパスを取得
-  const highestRole = getHighestRole();
+const highestRole = Object.entries(roles).reduce((a, b) => (a[1] > b[1] ? a : b))[0];
   const defaultImage = roleImages[highestRole] || "/images/default.png";
 
-
+  useEffect(() => {
+    const labels = ["司会者", "タイムキーパー", "アイディア提案者", "調整役", "記録係"];
+    const values = Object.values(roles);
+  
+    const width = 500;
+    const height = 500;
+    const center = { x: width / 2, y: height / 2 };
+    const radius = 200;
+  
+    const polarToCartesian = (angle, r) => {
+      const radians = (angle - 90) * (Math.PI / 180);
+      return {
+        x: center.x + r * Math.cos(radians),
+        y: center.y + r * Math.sin(radians),
+      };
+    };
+  
+    const generatePolygonPoints = (values, maxValue) => {
+      return values
+        .map((value, i) => {
+          const angle = (360 / values.length) * i;
+          const { x, y } = polarToCartesian(angle, (value / maxValue) * radius);
+          return `${x},${y}`;
+        })
+        .join(" ");
+    };
+  
+    const svg = chartRef.current;
+    if (svg) {
+      svg.innerHTML = ""; // 古いSVG要素を削除
+  
+      // グリッドの描画
+      for (let i = 1; i <= 5; i++) {
+        const points = generatePolygonPoints(Array(5).fill(i), 5);
+        const gridPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        gridPolygon.setAttribute("points", points);
+  
+        // 最外枠だけスタイルを変更
+        if (i === 5) {
+          gridPolygon.setAttribute("stroke", "#333"); // 外枠を濃い色に
+          gridPolygon.setAttribute("stroke-width", "2");
+        } else {
+          gridPolygon.setAttribute("stroke", "#ddd"); // 他のグリッド線は薄い色
+          gridPolygon.setAttribute("stroke-width", "1");
+        }
+  
+        gridPolygon.setAttribute("fill", "none");
+        svg.appendChild(gridPolygon);
+      }
+  
+      // データ描画
+      const dataPoints = generatePolygonPoints(values, 5);
+      const dataPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      dataPolygon.setAttribute("points", dataPoints);
+      dataPolygon.setAttribute("stroke", "#722F37");
+      dataPolygon.setAttribute("fill", "rgba(114, 47, 55, 0.2)");
+      svg.appendChild(dataPolygon);
+  
+      // ラベル描画
+      labels.forEach((label, i) => {
+        const angle = (360 / labels.length) * i;
+        const { x, y } = polarToCartesian(angle, radius + 20);
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", x);
+        text.setAttribute("y", y);
+        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("dominant-baseline", "middle");
+        text.setAttribute("font-size", "16px");
+        text.setAttribute("fill", "#333");
+        text.textContent = label;
+        svg.appendChild(text);
+      });
+    }
+  }, [roles]);
+  
 
 return (
  
@@ -1353,137 +1296,109 @@ return (
   </div>
 )}
 
-<div className="mt-8 bg-white p-6 rounded-lg shadow-md">
-      <div className="flex flex-col md:flex-row gap-8">
-        <div className="w-full md:w-2/5">
-          <div className="w-full h-[500px] flex items-center justify-center mb-4">
-            {/* 一番高い役職に対応する画像を表示 */}
-            <img
-              src={defaultImage}
-              alt={highestRole}
-              className="w-full h-auto rounded-lg shadow-md"
-            />
-          </div>
-          <div className="text-center bg-gray-50 p-4 rounded-lg">
-            <p className="text-xl font-bold text-[#722F37] mb-2">
-              あなたにおすすめのロール:
-                </p>
-                <p className="text-2xl font-bold">{getHighestRole()}</p>
-              </div>
-            </div>
-            <div className="w-full md:w-3/5">
-              <div className="relative w-full h-[600px]">
-                <canvas id="roleChart" className="w-full h-full"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-      
+<div className="mt-8 bg-white p-6 rounded-lg shadow-md flex items-center justify-center">
+  <div className="flex flex-col md:flex-row gap-8 items-center">
+    {/* 左側: 推奨ロール情報 */}
+    <div className="w-full md:w-2/5 flex flex-col items-center justify-center">
+      <div className="w-full h-[400px] flex items-center justify-center mb-4">
+        <img
+          src={defaultImage}
+          alt={highestRole}
+          className="w-3/4 h-auto rounded-lg shadow-md"
+        />
+      </div>
+      <div className="text-center bg-gray-50 p-4 rounded-lg">
+        <p className="text-xl font-bold text-[#722F37] mb-2">あなたにおすすめのロール:</p>
+        <p className="text-2xl font-bold">{highestRole}</p>
+      </div>
+    </div>
+
+    {/* 右側: レーダーチャート */}
+    <div className="w-full md:w-3/5 flex items-center justify-center">
+      <div
+        className="flex items-center justify-center border border-gray-300 rounded-lg"
+        style={{ width: "550px", height: "550px" }} // 枠サイズを固定
+      >
+        <svg
+          ref={chartRef}
+          width="530" // SVGの幅
+          height="530" // SVGの高さ
+          viewBox="-30 -30 550 550" // SVGの描画範囲を調整
+          className="block"
+        ></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+
     
-    </main>
-    <style jsx>{`
-  .container {
-    min-height: 100vh;
-    background-color: rgb(249, 250, 251);
-  }
-  .header {
-    background-color: white;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  }
-  .nav {
-    max-width: 80rem;
-    margin: 0 auto;
-    padding: 0 1rem;
-  }
-  .nav-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 4rem;
-  }
-  .logo {
-    font-family: 'Noto Sans JP', sans-serif;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #722F37;
-  }
-  .button {
-    background-color: #722F37;
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    transition: background-color 0.2s;
-  }
-  .button:hover {
-    background-color: #5a252c;
-  }
-  .modal {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-  }
-  .modal-content {
-    background-color: white;
-    padding: 2rem;
-    border-radius: 0.5rem;
-    width: 100%;
-    max-width: 28rem;
-  }
-  .form-input {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.375rem;
-    font-family: 'Noto Sans JP', sans-serif;
-  }
-  .error-text {
-    color: #ef4444;
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
-  }
-  .grid-container {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1.5rem;
-  }
-  @media (min-width: 768px) {
-    .grid-container {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-  @media (min-width: 1024px) {
-    .grid-container {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-  .card {
-    background-color: white;
-    padding: 1.5rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  }
-  .selected-date {
-    border: 2px dashed #722F37;
-    animation: dash 1s linear infinite;
-  }
-  @keyframes dash {
-    to {
-      border-style: solid;
-    }
-  }
-`}</style>
+    
+
+    
+        </main>
+    
+   {/* スタイルセクション */}
+      <style jsx>{`
+        
+
+        .container {
+          min-height: 100vh;
+          background-color: rgb(249, 250, 251);
+        }
+
+        .header {
+          background-color: white;
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .nav {
+          max-width: 80rem;
+          margin: 0 auto;
+          padding: 0 1rem;
+        }
+
+        .nav-content {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          height: 4rem;
+        }
+
+        .logo {
+          font-family: 'Noto Sans JP', sans-serif;
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #722F37;
+        }
+
+        .button {
+          background-color: #722F37;
+          color: white;
+          padding: 0.5rem 1rem;
+          border-radius: 0.375rem;
+          transition: background-color 0.2s;
+        }
+
+        .button:hover {
+          background-color: #5a252c;
+        }
+      `}</style>
+
+      {/* グローバルスタイル */}
+      <style jsx global>{`
+        body {
+          margin: 0;
+          font-family: 'Noto Sans JP', sans-serif;
+        }
+
+        .global-style-example {
+          font-size: 16px;
+          color: blue;
+        }
+      `}</style>
 
 
-<style jsx global>{`
-  .global-style-example {
-    font-size: 16px;
-    color: blue;
-  }
-`}</style>
   </div>
 );
 

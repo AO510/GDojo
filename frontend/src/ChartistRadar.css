@@ -1,0 +1,42 @@
+/* グラフの背景 */
+.ct-chart {
+    background-color: #f9f9f9; /* 背景色 */
+    border: 1px solid #ddd;   /* 枠線 */
+    border-radius: 8px;       /* 角丸 */
+  }
+  
+  /* ラベルのスタイル（軸ラベル） */
+  .ct-label {
+    font-size: 16px;     /* ラベルの文字サイズ */
+    fill: #333;          /* ラベルの色 */
+    font-weight: bold;   /* ラベルを太字に */
+  }
+  
+  /* データポイントのスタイル（円） */
+  .ct-point {
+    stroke: #722f37;     /* データポイントの色 */
+    stroke-width: 10px;  /* データポイントの大きさ */
+  }
+  
+  /* グラフの線のスタイル */
+  .ct-line {
+    stroke: #722f37;     /* 線の色 */
+    stroke-width: 3px;   /* 線の太さ */
+  }
+  
+  /* グラフの面のスタイル */
+  .ct-area {
+    fill: rgba(114, 47, 55, 0.2); /* 面の色 */
+  }
+  
+  /* グリッド線のスタイル */
+  .ct-grid {
+    stroke: rgba(0, 0, 0, 0.1); /* グリッド線の色 */
+  }
+  
+  /* カスタムホバー効果（オプション） */
+  .ct-point:hover {
+    stroke: #ff6347; /* ポイントをホバーした時の色 */
+    cursor: pointer; /* カーソルをポインターに */
+  }
+  
