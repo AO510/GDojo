@@ -41,9 +41,9 @@ function MainComponent() {
   
   const [roles, setRoles] = useState({
     司会者: 2,
-    タイムキーパー: 4,
-    アイディア提案者: 5,
-    調整役: 4,
+    調整役: 1,
+    アイディア提案者: 4,
+    タイムキーパー: 5,
     記録係: 3,
   });
 
@@ -548,7 +548,7 @@ const highestRole = Object.entries(roles).reduce((a, b) => (a[1] > b[1] ? a : b)
   const defaultImage = roleImages[highestRole] || "/images/default.png";
 
   useEffect(() => {
-    const labels = ["司会者", "タイムキーパー", "アイディア提案者", "調整役", "記録係"];
+    const labels = ["司会者", "調整役", "アイディア提案者", "タイムキーパー", "記録係"];
     const values = Object.values(roles);
   
     const width = 500;
