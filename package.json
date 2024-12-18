@@ -6,6 +6,7 @@
         "backend"
     ],
     "dependencies": {
+        "chart.js": "^4.4.7",
         "react-router-dom": "^7.0.2"
     }
 }

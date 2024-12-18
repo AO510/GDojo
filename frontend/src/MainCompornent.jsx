@@ -3,7 +3,10 @@ import React, { useState, useEffect, useCallback, useRef} from "react";
 import JitsiMeeting from './components/JitsiMeeting';
 //import { useNavigate } from "react-router-dom";
 
+import { Chart, registerables } from 'chart.js';
 
+// 必須: Chart.js を初期化
+Chart.register(...registerables);
 import {
   useUpload,
   useHandleStreamResponse,
@@ -34,6 +37,23 @@ function MainComponent() {
   const videoContainerRef = useRef(null); // フルスクリーン対象の参照
   const [recordingStarted, setRecordingStarted] = useState(false); // 録画開始状態を管理
   const streamRef = useRef(null); // useRefでstreamRefを初期化
+  
+  const [roles, setRoles] = useState({
+    司会者: 2,
+    タイムキーパー: 5,
+    アイディア提案者: 4,
+    調整役: 1,
+    記録係: 1,
+  });
+
+  const roleImages = {
+    司会者: "/images/leader.png",
+    タイムキーパー: "/images/timekeeper.png",
+    アイディア提案者: "/images/ideaProposer.png",
+    調整役: "/images/coordinator.png",
+    記録係: "/images/recorder.png",
+  };
+  const chartRef = useRef(null);
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -68,13 +88,7 @@ function MainComponent() {
   const [streamingMessage, setStreamingMessage] = useState("");
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [recordings, setRecordings] = useState([]);
-  const handleStreamResponse = useHandleStreamResponse({
-    onChunk: setStreamingMessage,
-    onFinish: (message) => {
-      setMessages((prev) => [...prev, { role: "assistant", content: message }]);
-      setStreamingMessage("");
-    },
-  });
+ 
 
   
 
@@ -528,12 +542,143 @@ useEffect(() => {
 
 
 
+useEffect(() => {
+  const canvas = document.getElementById("roleChart");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+
+  if (chartRef.current) {
+    chartRef.current.destroy(); // 古いチャートを破棄
+  }
+
+  chartRef.current = new Chart(ctx, {
+    type: "radar",
+    data: {
+      labels: [
+        "司会者",
+        "タイムキーパー",
+        "アイディア提案者",
+        "調整役",
+        "記録係",
+      ],
+      datasets: [
+        {
+          data: [
+            roles.司会者,
+            roles.タイムキーパー,
+            roles.アイディア提案者,
+            roles.調整役,
+            roles.記録係,
+          ],
+          backgroundColor: "rgba(114, 47, 55, 0.2)",
+          borderColor: "#4a1f24",
+          borderWidth: 5,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          pointLabels: {
+            color: "#000000",
+            font: {
+              size: 18,
+              weight: "bold",
+            },
+          },
+          ticks: {
+            color: "#000000",
+            font: {
+              size: 14,
+              weight: "bold",
+            },
+            backdropColor: "transparent",
+          },
+          grid: {
+            color: "#444444",
+          },
+          angleLines: {
+            color: "#444444",
+            lineWidth: 2,
+          },
+        },
+      },
+      plugins: {
+        legend: {
+          display: false,
+        },
+      },
+    },
+  });
+}, [roles]); // 依存配列を roles に設定
 
 
+
+
+
+
+const handleStreamResponse = useHandleStreamResponse({
+  onChunk: setStreamingMessage,
+  onFinish: (message) => {
+    setMessages((prev) => [...prev, { role: "assistant", content: message }]);
+    setStreamingMessage("");
+  },
+});
+const getHighestRole = () => {
+  return Object.entries(roles).reduce((a, b) => (a[1] > b[1] ? a : b))[0];
+};
   
-  
-  
- 
+useEffect(() => {
+  const canvas = document.getElementById("roleChart");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const data = {
+    labels: ["司会者", "タイムキーパー", "アイディア提案者", "調整役", "記録係"],
+    datasets: [
+      {
+        data: [
+          roles.司会者,
+          roles.タイムキーパー,
+          roles.アイディア提案者,
+          roles.調整役,
+          roles.記録係,
+        ],
+        backgroundColor: "rgba(114, 47, 55, 0.2)",
+        borderColor: "#722F37",
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  // チャート生成
+  if (chartRef.current) {
+    chartRef.current.destroy();
+  }
+  chartRef.current = new Chart(ctx, {
+    type: "radar",
+    data: data,
+    options: {
+      scales: {
+        r: {
+          beginAtZero: true,
+          max: 5,
+          ticks: { stepSize: 1 },
+        },
+      },
+      plugins: { legend: { display: false } },
+    },
+  });
+}, [roles]);
+
+  // 最も高い役職に一致する画像のパスを取得
+  const highestRole = getHighestRole();
+  const defaultImage = roleImages[highestRole] || "/images/default.png";
+
+
 
 return (
  
@@ -543,7 +688,7 @@ return (
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="font-noto-sans text-xl font-bold text-[#722F37]">
-            就活GD練習アプリ
+            グルディス道場
           </div>
           {!isLoggedIn ? (
             <button
@@ -1208,6 +1353,33 @@ return (
   </div>
 )}
 
+<div className="mt-8 bg-white p-6 rounded-lg shadow-md">
+      <div className="flex flex-col md:flex-row gap-8">
+        <div className="w-full md:w-2/5">
+          <div className="w-full h-[500px] flex items-center justify-center mb-4">
+            {/* 一番高い役職に対応する画像を表示 */}
+            <img
+              src={defaultImage}
+              alt={highestRole}
+              className="w-full h-auto rounded-lg shadow-md"
+            />
+          </div>
+          <div className="text-center bg-gray-50 p-4 rounded-lg">
+            <p className="text-xl font-bold text-[#722F37] mb-2">
+              あなたにおすすめのロール:
+                </p>
+                <p className="text-2xl font-bold">{getHighestRole()}</p>
+              </div>
+            </div>
+            <div className="w-full md:w-3/5">
+              <div className="relative w-full h-[600px]">
+                <canvas id="roleChart" className="w-full h-full"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      
+    
     </main>
     <style jsx>{`
   .container {
