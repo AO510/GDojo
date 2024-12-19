@@ -129,10 +129,10 @@ router.post("/getRoomDetails", (req, res) => {
 // お題生成関数
 const generateRandomTopicWithTimer = (category) => {
   const topics = {
-    general: [{ topic: "働き方改革について", timer: 300 }],
-    情報系: [{ topic: "AIの課題", timer: 60 }],
-    メーカー系: [{ topic: "環境に優しい製品設計", timer: 180 }],
-    金融系: [{ topic: "キャッシュレス社会", timer: 300 }],
+    general: [{ topic: "働き方改革について", timer: 120 }],
+    情報系: [{ topic: "渋滞をなくすにはどうすればいいか", timer: 120 }],
+    メーカー系: [{ topic: "太陽光発電の余剰電力をどのように用いるべきか", timer: 120 }],
+    公務系: [{ topic: "自転車のヘルメットの着用率を上げるためにはどのようにしたらよいか", timer: 120 }],
   };
   const topicList = topics[category] || topics["general"];
   const selectedTopic = topicList[Math.floor(Math.random() * topicList.length)];

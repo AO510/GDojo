@@ -41,10 +41,10 @@ function MainComponent() {
   
   const [roles, setRoles] = useState({
     司会者: 2,
-    調整役: 1,
-    アイディア提案者: 4,
-    タイムキーパー: 5,
-    記録係: 3,
+    調整役: 2,
+    アイディア提案者: 5,
+    タイムキーパー: 1,
+    記録係: 4,
   });
 
   const roleImages = {
@@ -165,7 +165,7 @@ const fetchData = useCallback(async () => {
     const categories = {
       情報系: getReservationCount(date, "情報系"),
       メーカー系: getReservationCount(date, "メーカー系"),
-      金融系: getReservationCount(date, "金融系"),
+      公務系: getReservationCount(date, "公務系"),
     };
     return Object.entries(categories).filter(([_, count]) => count > 0);
   };
@@ -734,7 +734,7 @@ return (
             <option value="">ランダム</option>
             <option value="情報系">情報系</option>
             <option value="メーカー系">メーカー系</option>
-            <option value="金融系">金融系</option>
+            <option value="公務系">公務系</option>
           </select>
         </div>
         <div>
@@ -913,7 +913,7 @@ return (
                 <option value="">企業カテゴリを選択（任意）</option>
                 <option value="情報系">情報系</option>
                 <option value="メーカー系">メーカー系</option>
-                <option value="金融系">金融系</option>
+                <option value="公務系">公務系</option>
               </select>
             </div>
             <div className="grid grid-cols-7 gap-2 mb-4">
